@@ -1,0 +1,1151 @@
+#addin "nuget:?package=Cake.CMake&version=1.3.1"
+#addin "nuget:?package=Cake.FileHelpers&version=4.0.1"
+#addin "nuget:?package=Cake.Git&version=1.1.0"
+
+//////////////////////////////////////////////////////////////////////
+// ARGUMENTS
+//////////////////////////////////////////////////////////////////////
+
+var configuration = Argument("configuration", "Debug");
+var revision = EnvironmentVariable("BUILD_NUMBER") ?? Argument("revision", "9999");
+var target = Argument("target", "Default");
+var cefWithArm64Binary = EnvironmentVariable("CEF_WITH_ARM64_BINARY") ?? "ON";
+var cefWithAutomateGitRoot = EnvironmentVariable("CEF_WITH_AUTOMATE_GIT_ROOT") ?? "NOTSET";
+var cefWithChromeDepotToolsCommitId = EnvironmentVariable("CEF_WITH_CHROME_DEPOT_TOOLS_COMMIT_ID") ?? "NOTSET";
+var cefWithChromeDepotToolsRoot = EnvironmentVariable("CEF_WITH_CHROME_DEPOT_TOOLS_ROOT") ?? "NOTSET";
+var cefWithChromeDepotToolsWithUpdate = EnvironmentVariable("CEF_WITH_CHROME_DEPOT_TOOLS_WITH_UPDATE") ?? "ON";
+var cefWithCleanBuild = EnvironmentVariable("CEF_WITH_CLEAN_BUILD") ?? "ON";
+var cefWithMsvsRoot = EnvironmentVariable("CEF_WITH_MSVS_ROOT") ?? "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community";
+var cefWithMsvsVcRedistCrtName = EnvironmentVariable("CEF_WITH_MSVS_VC_REDIST_CRT_NAME") ?? "Microsoft.VC142.CRT";
+var cefWithMsvsVcRedistVersion = EnvironmentVariable("CEF_WITH_MSVS_VC_REDIST_VERSION") ?? "14.29.30133";
+var cefWithMsvsVcToolsVersion = EnvironmentVariable("CEF_WITH_MSVS_VC_TOOLS_VERSION") ?? "14.29.30133";
+var cefWithMsvsVersion = EnvironmentVariable("CEF_WITH_MSVS_VERSION") ?? "2019";
+var cefWithProprietaryCodecs = EnvironmentVariable("CEF_WITH_PROPRIETARY_CODECS") ?? "OFF";
+var cefWithSdkCmakeToolset = EnvironmentVariable("CEF_WITH_SDK_CMAKE_TOOLSET") ?? "v142";
+var cefWithSourceRoot = EnvironmentVariable("CEF_WITH_SOURCE_ROOT") ?? "NOTSET";
+var cefWithWinSdkRoot = EnvironmentVariable("CEF_WITH_WIN_SDK_ROOT") ?? "C:\\Program Files (x86)\\Windows Kits\\10";
+var cefWithWinSdkVersion = EnvironmentVariable("CEF_WITH_WIN_SDK_VERSION") ?? "10.0.20348.0";
+var cefWithX64Binary = EnvironmentVariable("CEF_WITH_X64_BINARY") ?? "ON";
+var cefWithX86Binary = EnvironmentVariable("CEF_WITH_X86_BINARY") ?? "ON";
+
+//////////////////////////////////////////////////////////////////////
+// PREPARATION
+//////////////////////////////////////////////////////////////////////
+
+// Define git commit id
+var commitId = "SNAPSHOT";
+
+// Define product name and version
+var product = "htc.vita.external.cef";
+var productDescription = "HTC Vita External Library for WebView (CEF)";
+var companyName = "HTC";
+var version = "";
+var distribVersion = "";
+var chromiumBranchName = "5005";
+var semanticVersion = "";
+var buildVersion = "";
+var nugetAuthors = new [] {"HTC"};
+var nugetTags = new [] {"htc", "vita", "cef"};
+var projectUrl = "https://github.com/ViveportSoftware/vita_external_cef_binary/";
+var isCleanBuild = "ON".Equals(cefWithCleanBuild);
+var isReleaseBuild = "Release".Equals(configuration);
+var cefAutomateGitUrl = "https://bitbucket.org/chromiumembedded/cef/raw/master/tools/automate/automate-git.py";
+var cefSdkCmakeOptions = new List<string>();
+var cefLocaleFileNames = new []
+{
+        "af.pak", "am.pak", "ar.pak",
+        "bg.pak", "bn.pak",
+        "ca.pak", "cs.pak",
+        "da.pak", "de.pak",
+        "el.pak", "en-GB.pak", "en-US.pak", "es.pak", "es-419.pak", "et.pak",
+        "fa.pak", "fi.pak", "fil.pak", "fr.pak",
+        "gu.pak",
+        "he.pak", "hi.pak", "hr.pak", "hu.pak",
+        "id.pak", "it.pak",
+        "ja.pak",
+        "kn.pak", "ko.pak",
+        "lt.pak", "lv.pak",
+        "ml.pak", "mr.pak", "ms.pak",
+        "nb.pak", "nl.pak",
+        "pl.pak", "pt-BR.pak", "pt-PT.pak",
+        "ro.pak", "ru.pak",
+        "sk.pak", "sl.pak", "sr.pak", "sv.pak", "sw.pak",
+        "ta.pak", "te.pak", "th.pak", "tr.pak",
+        "uk.pak", "ur.pak",
+        "vi.pak",
+        "zh-CN.pak", "zh-TW.pak"
+};
+cefSdkCmakeOptions.Add("-DUSE_SANDBOX=OFF");
+cefSdkCmakeOptions.Add("-DCEF_RUNTIME_LIBRARY_FLAG=/MD");
+var chromeDepotToolsUrl = "https://storage.googleapis.com/chrome-infra/depot_tools.zip";
+var shouldBuildArm64Binary = "ON".Equals(cefWithArm64Binary);
+var shouldBuildX86Binary = "ON".Equals(cefWithX86Binary);
+var shouldBuildX64Binary = "ON".Equals(cefWithX64Binary);
+
+// Define copyright
+var copyright = $"Copyright © 2022 - {DateTime.Now.Year}";
+
+// Define timestamp for signing
+var lastSignTimestamp = DateTime.Now;
+var signIntervalInMilli = 1000 * 5;
+
+// Define directories.
+var sourceDir = Directory("./source");
+var distDir = Directory("./dist");
+var tempDir = Directory("./temp");
+var packagesDir = Directory("./source/packages");
+var nugetDir = Directory("./dist") + Directory(configuration) + Directory("nuget");
+var homeDir = Directory(EnvironmentVariable("USERPROFILE") ?? EnvironmentVariable("HOME"));
+var cefAutomateGitDir = sourceDir + Directory("automate");
+var cefAutomateGitFile = cefAutomateGitDir + File("automate-git.py");
+var cefSoureDir = sourceDir + Directory("cef");
+var chromeDepotToolsDir = sourceDir + Directory("depot_tools");
+var sdkTargetDir = tempDir + Directory($"{product}.sdk");
+var binaryDistribRootDir = cefSoureDir + Directory("chromium") + Directory("src") + Directory("cef") + Directory("binary_distrib");
+var binaryDistribWinArm64Dir = binaryDistribRootDir + Directory($"cef_binary_{distribVersion}_windowsarm64");
+var binaryDistribWinX64Dir = binaryDistribRootDir + Directory($"cef_binary_{distribVersion}_windows64");
+var binaryDistribWinX86Dir = binaryDistribRootDir + Directory($"cef_binary_{distribVersion}_windows32");
+
+// Define signing key, password and timestamp server
+var signKeyEnc = EnvironmentVariable("SIGNKEYENC") ?? "NOTSET";
+var signPass = EnvironmentVariable("SIGNPASS") ?? "NOTSET";
+var signSha1Uri = new Uri("http://timestamp.digicert.com");
+var signSha256Uri = new Uri("http://timestamp.digicert.com");
+
+// Define nuget push source and key
+var nugetApiKey = EnvironmentVariable("NUGET_PUSH_TOKEN") ?? EnvironmentVariable("NUGET_APIKEY") ?? "NOTSET";
+var nugetSource = EnvironmentVariable("NUGET_PUSH_PATH") ?? EnvironmentVariable("NUGET_SOURCE") ?? "NOTSET";
+
+
+//////////////////////////////////////////////////////////////////////
+// METHODS
+//////////////////////////////////////////////////////////////////////
+
+IDictionary<string, string> GetWindowsEnvironmentVariables(string platform)
+{
+    var ninjaArguments = new List<string>();
+    ninjaArguments.Add($"--ide=vs{cefWithMsvsVersion}");
+    ninjaArguments.Add("--sln=cef");
+    ninjaArguments.Add("--filters=//cef/*");
+
+    var ninjaDefines = new List<string>();
+    ninjaDefines.Add("ffmpeg_branding=\"Chrome\"");
+    ninjaDefines.Add("is_component_build=false");
+    ninjaDefines.Add("is_official_build=true");
+    if ("ON".Equals(cefWithProprietaryCodecs))
+    {
+        ninjaDefines.Add("proprietary_codecs=true");
+    }
+    if (isReleaseBuild)
+    {
+        ninjaDefines.Add("blink_symbol_level=0");
+        ninjaDefines.Add("symbol_level=1");
+        ninjaDefines.Add("v8_symbol_level=0");
+    }
+
+    var env = EnvironmentVariables();
+    env["CEF_ARCHIVE_FORMAT"] = "tar.bz2";
+    env["CEF_USE_GN"] = "1";
+    env["GN_ARGUMENTS"] = string.Join(" ", ninjaArguments);
+    env["GN_DEFINES"] = string.Join(" ", ninjaDefines);
+    env["GYP_MSVS_VERSION"] = cefWithMsvsVersion;
+
+    if (string.IsNullOrWhiteSpace(platform))
+    {
+        return env;
+    }
+
+    var include = new List<string>();
+    include.Add($"{cefWithWinSdkRoot}\\Include\\{cefWithWinSdkVersion}\\um");
+    include.Add($"{cefWithWinSdkRoot}\\Include\\{cefWithWinSdkVersion}\\ucrt");
+    include.Add($"{cefWithWinSdkRoot}\\Include\\{cefWithWinSdkVersion}\\shared");
+    include.Add($"{cefWithMsvsRoot}\\VC\\Tools\\MSVC\\{cefWithMsvsVcToolsVersion}\\include");
+    include.Add($"{cefWithMsvsRoot}\\VC\\Tools\\MSVC\\{cefWithMsvsVcToolsVersion}\\atlmfc\\include");
+
+    var lib = new List<string>();
+    lib.Add($"{cefWithWinSdkRoot}\\Lib\\{cefWithWinSdkVersion}\\um\\{platform}");
+    lib.Add($"{cefWithWinSdkRoot}\\Lib\\{cefWithWinSdkVersion}\\ucrt\\{platform}");
+    lib.Add($"{cefWithMsvsRoot}\\VC\\Tools\\MSVC\\{cefWithMsvsVcToolsVersion}\\lib\\{platform}");
+    lib.Add($"{cefWithMsvsRoot}\\VC\\Tools\\MSVC\\{cefWithMsvsVcToolsVersion}\\atlmfc\\lib\\{platform}");
+
+    var path = new List<string>();
+    path.Add($"{cefWithWinSdkRoot}\\bin\\{cefWithWinSdkVersion}\\{platform}");
+    path.Add($"{cefWithMsvsRoot}\\VC\\Tools\\MSVC\\{cefWithMsvsVcToolsVersion}\\bin\\Hostx64\\{platform}");
+    path.Add($"{cefWithMsvsRoot}\\VC\\Redist\\MSVC\\{cefWithMsvsVcRedistVersion}\\{platform}\\{cefWithMsvsVcRedistCrtName}");
+
+    env["CEF_ENABLE_ARM64"] = "1";
+    env["CEF_VCVARS"] = "none";
+    env["DEPOT_TOOLS_WIN_TOOLCHAIN"] = "0";
+    env["GYP_MSVS_OVERRIDE_PATH"] = cefWithMsvsRoot;
+
+    var oldInclude = "";
+    if (env.ContainsKey("INCLUDE"))
+    {
+        oldInclude = env["INCLUDE"];
+    }
+    var newInclude = string.Join(";", include);
+    if (!string.IsNullOrWhiteSpace(oldInclude))
+    {
+        newInclude += $";{oldInclude}";
+    }
+    env["INCLUDE"] = newInclude;
+
+    var oldLib = "";
+    if (env.ContainsKey("LIB"))
+    {
+        oldLib = env["LIB"];
+    }
+    var newLib = string.Join(";", lib);
+    if (!string.IsNullOrWhiteSpace(oldLib))
+    {
+        newLib += $";{oldLib}";
+    }
+    env["LIB"] = newLib;
+
+    var oldPath = "";
+    if (env.ContainsKey("PATH"))
+    {
+        oldPath = env["PATH"];
+    }
+    var newPath = string.Join(";", path);
+    if (!string.IsNullOrWhiteSpace(oldPath))
+    {
+        newPath += $";{oldPath}";
+    }
+    env["PATH"] = newPath;
+
+    env["SDK_ROOT"] = cefWithWinSdkRoot;
+    env["VS_CRT_ROOT"] = $"{cefWithMsvsRoot}\\VC\\Tools\\MSVC\\{cefWithMsvsVcToolsVersion}\\crt\\src\\vcruntime";
+    env["WIN_CUSTOM_TOOLCHAIN"] = "1";
+    return env;
+}
+
+void GZipFile(FilePath source, DirectoryPath destination)
+{
+    byte[] contents = System.IO.File.ReadAllBytes(source.FullPath);
+    FilePath output = destination.CombineWithFilePath($"{source.GetFilename()}.gz");
+    Information("Compressing {0} to {1}", source, output);
+
+    using (var gzipStream = new System.IO.Compression.GZipStream(
+            System.IO.File.Create(output.FullPath),
+            System.IO.Compression.CompressionLevel.Optimal))
+    {
+        gzipStream.Write(contents, 0, contents.Length);
+    }
+}
+
+
+//////////////////////////////////////////////////////////////////////
+// TASKS
+//////////////////////////////////////////////////////////////////////
+
+Task("Fetch-Git-Commit-ID")
+    .ContinueOnError()
+    .Does(() =>
+{
+    var lastCommit = GitLogTip(MakeAbsolute(Directory(".")));
+    commitId = lastCommit.Sha;
+});
+
+Task("Display-Config")
+    .IsDependentOn("Fetch-Git-Commit-ID")
+    .Does(() =>
+{
+    Information("Build target: {0}", target);
+    Information("Build configuration: {0}", configuration);
+    Information("Build commitId: {0}", commitId);
+});
+
+Task("Clean-Workspace")
+    .IsDependentOn("Display-Config")
+    .Does(() =>
+{
+    CleanDirectory(distDir);
+    CleanDirectory(tempDir);
+});
+
+Task("Prepare-Depot-Tools")
+    .IsDependentOn("Clean-Workspace")
+    .Does(() =>
+{
+    if (!"NOTSET".Equals(cefWithChromeDepotToolsRoot))
+    {
+        chromeDepotToolsDir = Directory(cefWithChromeDepotToolsRoot);
+    }
+    if (!DirectoryExists(chromeDepotToolsDir))
+    {
+        var chromeDepotToolsTempFile = tempDir + File("depot_tools.zip");
+        Information("Try to download {0} to \"{1}\"", chromeDepotToolsUrl, chromeDepotToolsTempFile);
+        DownloadFile(chromeDepotToolsUrl, chromeDepotToolsTempFile);
+        Information("Try to extract {0} to {1}", chromeDepotToolsTempFile, chromeDepotToolsDir);
+        Unzip(chromeDepotToolsTempFile, chromeDepotToolsDir);
+    }
+    Information("Locate depot tools: {0}", chromeDepotToolsDir);
+
+    if ("ON".Equals(cefWithChromeDepotToolsWithUpdate))
+    {
+        var updateScriptFileName = "update_depot_tools.bat";
+        var exitCodeWithArgument = StartProcess(
+                "cmd.exe",
+                new ProcessSettings
+                {
+                        Arguments = new ProcessArgumentBuilder()
+                                .Append("/c")
+                                .Append(updateScriptFileName),
+                        WorkingDirectory = chromeDepotToolsDir
+                }
+        );
+        Information("Update depot tools via {0}, exit code: {1}", updateScriptFileName, exitCodeWithArgument);
+    }
+
+    if (!"NOTSET".Equals(cefWithChromeDepotToolsCommitId))
+    {
+        GitCheckout(chromeDepotToolsDir, cefWithChromeDepotToolsCommitId);
+    }
+
+    var newChromeDepotToolsCommit = GitLogTip(MakeAbsolute(chromeDepotToolsDir));
+    var newcefWithChromeDepotToolsCommitId = newChromeDepotToolsCommit.Sha;
+    Information("Detect depot tools commit id: {0}", newcefWithChromeDepotToolsCommitId);
+});
+
+Task("Prepare-Automate-Git")
+    .IsDependentOn("Prepare-Depot-Tools")
+    .Does(() =>
+{
+    if (!"NOTSET".Equals(cefWithAutomateGitRoot))
+    {
+        cefAutomateGitDir = Directory(cefWithAutomateGitRoot);
+        cefAutomateGitFile = cefAutomateGitDir + File("automate-git.py");
+    }
+    if (!DirectoryExists(cefAutomateGitDir))
+    {
+        var cefAutomateGitTempFile = tempDir + File("automate-git.py");
+        Information("Try to download {0} to \"{1}\"", cefAutomateGitUrl, cefAutomateGitTempFile);
+        DownloadFile(cefAutomateGitUrl, cefAutomateGitTempFile);
+        CreateDirectory(cefAutomateGitDir);
+        Information("Try to copy {0} to {1}", cefAutomateGitTempFile, cefAutomateGitFile);
+        CopyFile(cefAutomateGitTempFile, cefAutomateGitFile);
+    }
+    Information("Locate automate git: {0}", cefAutomateGitDir);
+});
+
+Task("Fetch-Source")
+    .IsDependentOn("Prepare-Automate-Git")
+    .Does(() =>
+{
+    if (!"NOTSET".Equals(cefWithSourceRoot))
+    {
+        cefSoureDir = Directory(cefWithSourceRoot);
+    }
+    if (!DirectoryExists(cefSoureDir))
+    {
+        CreateDirectory(cefSoureDir);
+    }
+
+    var exitCodeWithArgument = StartProcess(
+            "cmd.exe",
+            new ProcessSettings
+            {
+                    Arguments = new ProcessArgumentBuilder()
+                            .Append("/c")
+                            .Append("python3.bat")
+                            .Append(MakeAbsolute(cefAutomateGitFile).ToString())
+                            .Append($"--branch={chromiumBranchName}")
+                            .Append($"--depot-tools-dir=\"{MakeAbsolute(chromeDepotToolsDir).ToString()}\"")
+                            .Append($"--download-dir=\"{MakeAbsolute(cefSoureDir).ToString()}\"")
+                            .Append(isCleanBuild ? "--force-clean" : "")
+                            .Append("--no-build")
+                            .Append("--no-distrib"),
+                    EnvironmentVariables = GetWindowsEnvironmentVariables(null),
+                    WorkingDirectory = chromeDepotToolsDir
+            }
+    );
+    if (exitCodeWithArgument != 0)
+    {
+        throw new Exception($"Can not fetch source code. exit code: {exitCodeWithArgument}");
+    }
+});
+
+Task("Detect-Version")
+    .IsDependentOn("Fetch-Source")
+    .Does(() =>
+{
+    var cefVersionFile = cefSoureDir
+                       + Directory("chromium")
+                       + Directory("src")
+                       + Directory("cef")
+                       + Directory("include")
+                       + File("cef_version.h");
+    if (!FileExists(cefVersionFile))
+    {
+        throw new Exception($"Can not find {cefVersionFile}");
+    }
+
+    var lines = FileReadLines(cefVersionFile);
+    var unknownVersionPart = "9999";
+    var majorPart = unknownVersionPart;
+    var minorPart = unknownVersionPart;
+    var patchPart = unknownVersionPart;
+    foreach (var line in lines)
+    {
+        var prefix = "#define CEF_VERSION_MAJOR ";
+        if (line.StartsWith(prefix))
+        {
+            majorPart = line.Substring(prefix.Length);
+            continue;
+        }
+        prefix = "#define CEF_VERSION_MINOR ";
+        if (line.StartsWith(prefix))
+        {
+            minorPart = line.Substring(prefix.Length);
+            continue;
+        }
+        prefix = "#define CEF_VERSION_PATCH ";
+        if (line.StartsWith(prefix))
+        {
+            patchPart = line.Substring(prefix.Length);
+            continue;
+        }
+        prefix = "#define CEF_VERSION ";
+        if (line.StartsWith(prefix))
+        {
+            distribVersion = line.Substring(prefix.Length).Trim('"');
+            continue;
+        }
+    }
+    version = $"{majorPart}.{minorPart}.{patchPart}";
+    semanticVersion = $"{version}.{revision}";
+    buildVersion = isReleaseBuild ? semanticVersion : $"{version}.0-CI{revision}";
+    Information("Build version: {0}", buildVersion);
+    Information("Build distrib version: {0}", distribVersion);
+
+    // Update path
+    binaryDistribRootDir = cefSoureDir
+            + Directory("chromium")
+            + Directory("src")
+            + Directory("cef")
+            + Directory("binary_distrib");
+});
+
+Task("Build-Binary-win-x86")
+    .WithCriteria(() => shouldBuildX86Binary)
+    .IsDependentOn("Detect-Version")
+    .Does(() =>
+{
+    var exitCodeWithArgument = StartProcess(
+            "cmd.exe",
+            new ProcessSettings
+            {
+                    Arguments = new ProcessArgumentBuilder()
+                            .Append("/c")
+                            .Append("python3.bat")
+                            .Append(MakeAbsolute(cefAutomateGitFile).ToString())
+                            .Append("--build-log-file")
+                            .Append($"--branch={chromiumBranchName}")
+                            .Append($"--depot-tools-dir=\"{MakeAbsolute(chromeDepotToolsDir).ToString()}\"")
+                            .Append($"--download-dir=\"{MakeAbsolute(cefSoureDir).ToString()}\"")
+                            .Append("--force-build")
+                            .Append("--force-distrib")
+                            .Append("--no-update")
+                            .Append("--no-debug-build")
+                            .Append("--verbose-build"),
+                    EnvironmentVariables = GetWindowsEnvironmentVariables("x86"),
+                    WorkingDirectory = chromeDepotToolsDir
+            }
+    );
+    if (exitCodeWithArgument != 0)
+    {
+        throw new Exception($"Can not build binary. exit code: {exitCodeWithArgument}");
+    }
+
+    // Update path
+    binaryDistribWinX86Dir = binaryDistribRootDir + Directory($"cef_binary_{distribVersion}_windows32");
+    if (!DirectoryExists(binaryDistribWinX86Dir))
+    {
+        throw new Exception($"Can not find binary distrib directory: {binaryDistribWinX86Dir}");
+    }
+});
+
+Task("Build-Binary-win-x64")
+    .WithCriteria(() => shouldBuildX64Binary)
+    .IsDependentOn("Build-Binary-win-x86")
+    .Does(() =>
+{
+    var exitCodeWithArgument = StartProcess(
+            "cmd.exe",
+            new ProcessSettings
+            {
+                    Arguments = new ProcessArgumentBuilder()
+                            .Append("/c")
+                            .Append("python3.bat")
+                            .Append(MakeAbsolute(cefAutomateGitFile).ToString())
+                            .Append("--build-log-file")
+                            .Append($"--branch={chromiumBranchName}")
+                            .Append($"--depot-tools-dir=\"{MakeAbsolute(chromeDepotToolsDir).ToString()}\"")
+                            .Append($"--download-dir=\"{MakeAbsolute(cefSoureDir).ToString()}\"")
+                            .Append("--force-build")
+                            .Append("--force-distrib")
+                            .Append("--no-update")
+                            .Append("--no-debug-build")
+                            .Append("--verbose-build")
+                            .Append("--x64-build"),
+                    EnvironmentVariables = GetWindowsEnvironmentVariables("x64"),
+                    WorkingDirectory = chromeDepotToolsDir
+            }
+    );
+    if (exitCodeWithArgument != 0)
+    {
+        throw new Exception($"Can not fetch source code. exit code: {exitCodeWithArgument}");
+    }
+
+    // Update path
+    binaryDistribWinX64Dir = binaryDistribRootDir + Directory($"cef_binary_{distribVersion}_windows64");
+    if (!DirectoryExists(binaryDistribWinX64Dir))
+    {
+        throw new Exception($"Can not find binary distrib directory: {binaryDistribWinX64Dir}");
+    }
+});
+
+Task("Build-Binary-win-arm64")
+    .WithCriteria(() => shouldBuildArm64Binary)
+    .IsDependentOn("Build-Binary-win-x64")
+    .Does(() =>
+{
+    var exitCodeWithArgument = StartProcess(
+            "cmd.exe",
+            new ProcessSettings
+            {
+                    Arguments = new ProcessArgumentBuilder()
+                            .Append("/c")
+                            .Append("python3.bat")
+                            .Append(MakeAbsolute(cefAutomateGitFile).ToString())                            
+                            .Append("--arm64-build")
+                            .Append("--build-log-file")
+                            .Append("--build-target=cefsimple")
+                            .Append($"--branch={chromiumBranchName}")
+                            .Append($"--depot-tools-dir=\"{MakeAbsolute(chromeDepotToolsDir).ToString()}\"")
+                            .Append($"--download-dir=\"{MakeAbsolute(cefSoureDir).ToString()}\"")
+                            .Append("--force-build")
+                            .Append("--force-distrib")
+                            .Append("--no-update")
+                            .Append("--no-debug-build")
+                            .Append("--verbose-build"),
+                    EnvironmentVariables = GetWindowsEnvironmentVariables("arm64"),
+                    WorkingDirectory = chromeDepotToolsDir
+            }
+    );
+    if (exitCodeWithArgument != 0)
+    {
+        throw new Exception($"Can not fetch source code. exit code: {exitCodeWithArgument}");
+    }
+
+    // Update path
+    binaryDistribWinArm64Dir = binaryDistribRootDir + Directory($"cef_binary_{distribVersion}_windowsarm64");
+    if (!DirectoryExists(binaryDistribWinArm64Dir))
+    {
+        throw new Exception($"Can not find binary distrib directory: {binaryDistribWinArm64Dir}");
+    }
+});
+
+Task("Build-SDK-win-x86")
+    .WithCriteria(() => shouldBuildX86Binary)
+    .IsDependentOn("Build-Binary-win-arm64")
+    .Does(() =>
+{
+    var sdkTargetBuildDir = sdkTargetDir
+            + Directory(cefWithSdkCmakeToolset)
+            + Directory("win32");
+    CreateDirectory(sdkTargetBuildDir);
+    CMake(
+            binaryDistribWinX86Dir,
+            new CMakeSettings
+            {
+                    Options = cefSdkCmakeOptions.ToArray(),
+                    OutputPath = sdkTargetBuildDir,
+                    Platform = "Win32",
+                    Toolset = cefWithSdkCmakeToolset
+            }
+    );
+    MSBuild(
+            sdkTargetBuildDir + File("cef.sln"),
+            new MSBuildSettings()
+            {
+                    Configuration = "Release",
+                    MaxCpuCount = 0
+            }
+    );
+});
+
+Task("Build-SDK-win-x64")
+    .WithCriteria(() => shouldBuildX64Binary)
+    .IsDependentOn("Build-SDK-win-x86")
+    .Does(() =>
+{
+    var sdkTargetBuildDir = sdkTargetDir
+            + Directory(cefWithSdkCmakeToolset)
+            + Directory("x64");
+    CreateDirectory(sdkTargetBuildDir);
+    CMake(
+            binaryDistribWinX64Dir,
+            new CMakeSettings
+            {
+                    Options = cefSdkCmakeOptions.ToArray(),
+                    OutputPath = sdkTargetBuildDir,
+                    Platform = "x64",
+                    Toolset = cefWithSdkCmakeToolset
+            }
+    );
+    MSBuild(
+            sdkTargetBuildDir + File("cef.sln"),
+            new MSBuildSettings()
+            {
+                    Configuration = "Release",
+                    MaxCpuCount = 0
+            }
+    );
+});
+
+Task("Build-SDK-win-arm64")
+    .WithCriteria(() => shouldBuildX64Binary)
+    .IsDependentOn("Build-SDK-win-x64")
+    .Does(() =>
+{
+    var sdkTargetBuildDir = sdkTargetDir
+            + Directory(cefWithSdkCmakeToolset)
+            + Directory("arm64");
+    CreateDirectory(sdkTargetBuildDir);
+    CMake(
+            binaryDistribWinArm64Dir,
+            new CMakeSettings
+            {
+                    Options = cefSdkCmakeOptions.ToArray(),
+                    OutputPath = sdkTargetBuildDir,
+                    Platform = "arm64",
+                    Toolset = cefWithSdkCmakeToolset
+            }
+    );
+    MSBuild(
+            sdkTargetBuildDir + File("cef.sln"),
+            new MSBuildSettings()
+            {
+                    Configuration = "Release",
+                    MaxCpuCount = 0
+            }
+    );
+});
+
+Task("Sign-Binaries")
+    .WithCriteria(() => isReleaseBuild && !"NOTSET".Equals(signPass) && !"NOTSET".Equals(signKeyEnc))
+    .IsDependentOn("Build-SDK-win-arm64")
+    .Does(() =>
+{
+    var signKey = "./temp/key.pfx";
+    System.IO.File.WriteAllBytes(signKey, Convert.FromBase64String(signKeyEnc));
+
+    var dirsToSign = new[]
+    {
+            binaryDistribWinX86Dir + Directory("Release"),
+            binaryDistribWinX64Dir + Directory("Release"),
+            binaryDistribWinArm64Dir + Directory("Release")
+    };
+    foreach (var dirToSign in dirsToSign)
+    {
+        var filesToSign = new[]
+        {
+                dirToSign + File("chrome_elf.dll"),
+                dirToSign + File("libcef.dll"),
+                dirToSign + File("libEGL.dll"),
+                dirToSign + File("libGLESv2.dll"),
+                dirToSign + File("vk_swiftshader.dll"),
+                dirToSign + File("vulkan-1.dll")
+        };
+        foreach (var fileToSign in filesToSign)
+        {
+            if (!FileExists(fileToSign))
+            {
+                Warning("Binary {0} does not exist. Skipped.", fileToSign);
+            }
+            else
+            {
+                Sign(
+                        fileToSign,
+                        new SignToolSignSettings
+                        {
+                                AppendSignature = true,
+                                TimeStampUri = signSha256Uri,
+                                DigestAlgorithm = SignToolDigestAlgorithm.Sha256,
+                                TimeStampDigestAlgorithm = SignToolDigestAlgorithm.Sha256,
+                                CertPath = signKey,
+                                Password = signPass
+                        }
+                );
+                System.Threading.Thread.Sleep(signIntervalInMilli);
+            }
+        }
+    }
+});
+
+Task("Gzip-Binaries")
+    .IsDependentOn("Sign-Binaries")
+    .Does(() =>
+{
+    var dirsToGzip = new[]
+    {
+            binaryDistribWinX86Dir + Directory("Release"),
+            binaryDistribWinX64Dir + Directory("Release"),
+            binaryDistribWinArm64Dir + Directory("Release")
+    };
+    foreach (var dirToGzip in dirsToGzip)
+    {
+        var filesToGzip = new[]
+        {
+                dirToGzip + File("chrome_elf.dll"),
+                dirToGzip + File("d3dcompiler_47.dll"),
+                dirToGzip + File("libcef.dll"),
+                dirToGzip + File("libEGL.dll"),
+                dirToGzip + File("libGLESv2.dll"),
+                dirToGzip + File("snapshot_blob.bin"),
+                dirToGzip + File("v8_context_snapshot.bin"),
+                dirToGzip + File("vk_swiftshader.dll"),
+                dirToGzip + File("vk_swiftshader_icd.json"),
+                dirToGzip + File("vulkan-1.dll")
+        };
+        foreach (var fileToGzip in filesToGzip)
+        {
+            if (!FileExists(fileToGzip))
+            {
+                Warning("Binary {0} does not exist. Skipped.", fileToGzip);
+            }
+            else
+            {
+                GZipFile(
+                        fileToGzip,
+                        dirToGzip
+                );
+            }
+        }
+    }
+
+    dirsToGzip = new[]
+    {
+            binaryDistribWinX86Dir + Directory("Resources"),
+            binaryDistribWinX64Dir + Directory("Resources"),
+            binaryDistribWinArm64Dir + Directory("Resources")
+    };
+    foreach (var dirToGzip in dirsToGzip)
+    {
+        var filesToGzip = new[]
+        {
+                dirToGzip + File("chrome_100_percent.pak"),
+                dirToGzip + File("chrome_200_percent.pak"),
+                dirToGzip + File("icudtl.dat"),
+                dirToGzip + File("resources.pak")
+        };
+        foreach (var fileToGzip in filesToGzip)
+        {
+            if (!FileExists(fileToGzip))
+            {
+                Warning("Binary {0} does not exist. Skipped.", fileToGzip);
+            }
+            else
+            {
+                GZipFile(
+                        fileToGzip,
+                        dirToGzip
+                );
+            }
+        }
+    }
+
+    dirsToGzip = new[]
+    {
+            binaryDistribWinX86Dir + Directory("Resources") + Directory("locales"),
+            binaryDistribWinX64Dir + Directory("Resources") + Directory("locales"),
+            binaryDistribWinArm64Dir + Directory("Resources") + Directory("locales")
+    };
+    foreach (var dirToGzip in dirsToGzip)
+    {
+        foreach (var cefLocaleFileName in cefLocaleFileNames)
+        {
+            var fileToGzip = dirToGzip + File(cefLocaleFileName); 
+            if (!FileExists(fileToGzip))
+            {
+                Warning("Binary {0} does not exist. Skipped.", fileToGzip);
+            }
+            else
+            {
+                GZipFile(
+                        fileToGzip,
+                        dirToGzip
+                );
+            }
+        }
+    }
+});
+
+Task("Build-NuGet-Package")
+    .IsDependentOn("Gzip-Binaries")
+    .Does(() =>
+{
+    CreateDirectory(nugetDir);
+
+    var nuSpecContentListWinBase = new List<NuSpecContent>();
+    nuSpecContentListWinBase.Add(new NuSpecContent
+    {
+            Source = "Release/chrome_elf.dll",
+            Target = "CEF"
+    });
+    nuSpecContentListWinBase.Add(new NuSpecContent
+    {
+            Source = "Release/chrome_elf.dll.gz",
+            Target = "CEF"
+    });
+    nuSpecContentListWinBase.Add(new NuSpecContent
+    {
+            Source = "Release/libcef.dll",
+            Target = "CEF"
+    });
+    nuSpecContentListWinBase.Add(new NuSpecContent
+    {
+            Source = "Release/libcef.dll.gz",
+            Target = "CEF"
+    });
+    nuSpecContentListWinBase.Add(new NuSpecContent
+    {
+            Source = "Release/libEGL.dll",
+            Target = "CEF"
+    });
+    nuSpecContentListWinBase.Add(new NuSpecContent
+    {
+            Source = "Release/libEGL.dll.gz",
+            Target = "CEF"
+    });
+    nuSpecContentListWinBase.Add(new NuSpecContent
+    {
+            Source = "Release/libGLESv2.dll",
+            Target = "CEF"
+    });
+    nuSpecContentListWinBase.Add(new NuSpecContent
+    {
+            Source = "Release/libGLESv2.dll.gz",
+            Target = "CEF"
+    });
+    nuSpecContentListWinBase.Add(new NuSpecContent
+    {
+            Source = "Release/vk_swiftshader.dll",
+            Target = "CEF"
+    });
+    nuSpecContentListWinBase.Add(new NuSpecContent
+    {
+            Source = "Release/vk_swiftshader.dll.gz",
+            Target = "CEF"
+    });
+    nuSpecContentListWinBase.Add(new NuSpecContent
+    {
+            Source = "Release/vk_swiftshader_icd.json",
+            Target = "CEF"
+    });
+    nuSpecContentListWinBase.Add(new NuSpecContent
+    {
+            Source = "Release/vk_swiftshader_icd.json.gz",
+            Target = "CEF"
+    });
+    nuSpecContentListWinBase.Add(new NuSpecContent
+    {
+            Source = "Release/vulkan-1.dll",
+            Target = "CEF"
+    });
+    nuSpecContentListWinBase.Add(new NuSpecContent
+    {
+            Source = "Release/vulkan-1.dll.gz",
+            Target = "CEF"
+    });
+    nuSpecContentListWinBase.Add(new NuSpecContent
+    {
+            Source = "Resources/chrome_100_percent.pak",
+            Target = "CEF"
+    });
+    nuSpecContentListWinBase.Add(new NuSpecContent
+    {
+            Source = "Resources/chrome_100_percent.pak.gz",
+            Target = "CEF"
+    });
+    nuSpecContentListWinBase.Add(new NuSpecContent
+    {
+            Source = "Resources/chrome_200_percent.pak",
+            Target = "CEF"
+    });
+    nuSpecContentListWinBase.Add(new NuSpecContent
+    {
+            Source = "Resources/chrome_200_percent.pak.gz",
+            Target = "CEF"
+    });
+    nuSpecContentListWinBase.Add(new NuSpecContent
+    {
+            Source = "Resources/icudtl.dat",
+            Target = "CEF"
+    });
+    nuSpecContentListWinBase.Add(new NuSpecContent
+    {
+            Source = "Resources/icudtl.dat.gz",
+            Target = "CEF"
+    });
+    nuSpecContentListWinBase.Add(new NuSpecContent
+    {
+            Source = "Resources/resources.pak",
+            Target = "CEF"
+    });
+    nuSpecContentListWinBase.Add(new NuSpecContent
+    {
+            Source = "Resources/resources.pak.gz",
+            Target = "CEF"
+    });
+
+    foreach (var cefLocaleFileName in cefLocaleFileNames)
+    {
+        nuSpecContentListWinBase.Add(new NuSpecContent
+        {
+                Source = $"Resources/locales/{cefLocaleFileName}",
+                Target = "CEF\\locales"
+        });
+        nuSpecContentListWinBase.Add(new NuSpecContent
+        {
+                Source = $"Resources/locales/{cefLocaleFileName}.gz",
+                Target = "CEF\\locales"
+        });
+    }
+
+    var nuSpecContentListWinArm64 = new List<NuSpecContent>(nuSpecContentListWinBase);
+    nuSpecContentListWinBase.Add(new NuSpecContent
+    {
+            Source = "Release/d3dcompiler_47.dll",
+            Target = "CEF"
+    });
+    nuSpecContentListWinBase.Add(new NuSpecContent
+    {
+            Source = "Release/d3dcompiler_47.dll.gz",
+            Target = "CEF"
+    });
+    var nuSpecContentListWinX64 = new List<NuSpecContent>(nuSpecContentListWinBase);
+    var nuSpecContentListWinX86 = new List<NuSpecContent>(nuSpecContentListWinBase);
+
+    CopyDirectory(
+            sourceDir + Directory("nuget"),
+            binaryDistribRootDir
+    );
+
+    nuSpecContentListWinArm64.Add(new NuSpecContent
+    {
+            Source = $"../{product}.redist.win-arm64.props",
+            Target = "build"
+    });
+    nuSpecContentListWinX64.Add(new NuSpecContent
+    {
+            Source = $"../{product}.redist.win-x64.props",
+            Target = "build"
+    });
+    nuSpecContentListWinX86.Add(new NuSpecContent
+    {
+            Source = $"../{product}.redist.win-x86.props",
+            Target = "build"
+    });
+
+    NuGetPack(new NuGetPackSettings
+    {
+            Id = $"{product}.redist.win-x86",
+            Version = buildVersion,
+            Authors = nugetAuthors,
+            Description = $"{productDescription} [CommitId: {commitId}]",
+            Copyright = copyright,
+            ProjectUrl = new Uri(projectUrl),
+            Tags = nugetTags,
+            RequireLicenseAcceptance= false,
+            Files = nuSpecContentListWinX86.ToArray(),
+            Properties = new Dictionary<string, string>
+            {
+                    {"Configuration", configuration}
+            },
+            BasePath = binaryDistribWinX86Dir,
+            OutputDirectory = nugetDir
+    });
+    NuGetPack(new NuGetPackSettings
+    {
+            Id = $"{product}.redist.win-x64",
+            Version = buildVersion,
+            Authors = nugetAuthors,
+            Description = $"{productDescription} [CommitId: {commitId}]",
+            Copyright = copyright,
+            ProjectUrl = new Uri(projectUrl),
+            Tags = nugetTags,
+            RequireLicenseAcceptance= false,
+            Files = nuSpecContentListWinX64.ToArray(),
+            Properties = new Dictionary<string, string>
+            {
+                    {"Configuration", configuration}
+            },
+            BasePath = binaryDistribWinX64Dir,
+            OutputDirectory = nugetDir
+    });
+    NuGetPack(new NuGetPackSettings
+    {
+            Id = $"{product}.redist.win-arm64",
+            Version = buildVersion,
+            Authors = nugetAuthors,
+            Description = $"{productDescription} [CommitId: {commitId}]",
+            Copyright = copyright,
+            ProjectUrl = new Uri(projectUrl),
+            Tags = nugetTags,
+            RequireLicenseAcceptance= false,
+            Files = nuSpecContentListWinArm64.ToArray(),
+            Properties = new Dictionary<string, string>
+            {
+                    {"Configuration", configuration}
+            },
+            BasePath = binaryDistribWinArm64Dir,
+            OutputDirectory = nugetDir
+    });
+
+    var nuSpecContentListWinSdk = new List<NuSpecContent>();
+    var sdkPropName = $"{product}.sdk.{cefWithSdkCmakeToolset}.props";
+    FileWriteText(
+            sdkTargetDir + File(sdkPropName),
+            ""
+                    + "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+                    + "<Project ToolsVersion=\"4.0\" xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">\n"
+                    + "  <PropertyGroup>\n"
+                    + "    <CefSdkVer>" + $"{product}.sdk.{cefWithSdkCmakeToolset}.{buildVersion}" + "</CefSdkVer>\n"
+                    + "  </PropertyGroup>\n"
+                    + "</Project>"
+    );
+    nuSpecContentListWinSdk.Add(new NuSpecContent
+    {
+            Source = sdkPropName,
+            Target = "build"
+    });
+
+    var includeDir = binaryDistribWinArm64Dir + Directory("include");
+    if (!DirectoryExists(includeDir))
+    {
+        includeDir = binaryDistribWinX64Dir + Directory("include");
+    }
+    if (!DirectoryExists(includeDir))
+    {
+        includeDir = binaryDistribWinX86Dir + Directory("include");
+    }
+    if (!DirectoryExists(includeDir))
+    {
+        throw new Exception("Can not find include directory.");
+    }
+    CopyDirectory(
+            includeDir,
+            sdkTargetDir + Directory("include")
+    );
+    nuSpecContentListWinSdk.Add(new NuSpecContent
+    {
+            Source = "include/**",
+            Target = "CEF"
+    });
+
+    var libcefLibFileWinX86 = binaryDistribWinX86Dir + Directory("Release") + File("libcef.lib");
+    if (FileExists(libcefLibFileWinX86))
+    {
+        CopyFile(
+                libcefLibFileWinX86,
+                sdkTargetDir + Directory(cefWithSdkCmakeToolset) + Directory("win32") + File("libcef.lib")
+        );
+        nuSpecContentListWinSdk.Add(new NuSpecContent
+        {
+                Source = $"{cefWithSdkCmakeToolset}/win32/libcef.lib",
+                Target = "CEF\\win32\\release"
+        });
+        nuSpecContentListWinSdk.Add(new NuSpecContent
+        {
+                Source = $"{cefWithSdkCmakeToolset}/win32/libcef_dll_wrapper/Release/libcef_dll_wrapper.lib",
+                Target = $"CEF\\win32\\release\\{cefWithSdkCmakeToolset}"
+        });
+        nuSpecContentListWinSdk.Add(new NuSpecContent
+        {
+                Source = $"{cefWithSdkCmakeToolset}/win32/libcef_dll_wrapper/Release/libcef_dll_wrapper.pdb",
+                Target = $"CEF\\win32\\release\\{cefWithSdkCmakeToolset}"
+        });
+    }
+    var libcefLibFileWinX64 = binaryDistribWinX64Dir + Directory("Release") + File("libcef.lib");
+    if (FileExists(libcefLibFileWinX64))
+    {
+        CopyFile(
+                libcefLibFileWinX64,
+                sdkTargetDir + Directory(cefWithSdkCmakeToolset) + Directory("x64") + File("libcef.lib")
+        );
+        nuSpecContentListWinSdk.Add(new NuSpecContent
+        {
+                Source = $"{cefWithSdkCmakeToolset}/x64/libcef.lib",
+                Target = "CEF\\x64\\release"
+        });
+        nuSpecContentListWinSdk.Add(new NuSpecContent
+        {
+                Source = $"{cefWithSdkCmakeToolset}/x64/libcef_dll_wrapper/Release/libcef_dll_wrapper.lib",
+                Target = $"CEF\\x64\\release\\{cefWithSdkCmakeToolset}"
+        });
+        nuSpecContentListWinSdk.Add(new NuSpecContent
+        {
+                Source = $"{cefWithSdkCmakeToolset}/x64/libcef_dll_wrapper/Release/libcef_dll_wrapper.pdb",
+                Target = $"CEF\\x64\\release\\{cefWithSdkCmakeToolset}"
+        });
+    }
+    var libcefLibFileWinArm64 = binaryDistribWinArm64Dir + Directory("Release") + File("libcef.lib");
+    if (FileExists(libcefLibFileWinArm64))
+    {
+        CopyFile(
+                libcefLibFileWinArm64,
+                sdkTargetDir + Directory(cefWithSdkCmakeToolset) + Directory("arm64") + File("libcef.lib")
+        );
+        nuSpecContentListWinSdk.Add(new NuSpecContent
+        {
+                Source = $"{cefWithSdkCmakeToolset}/arm64/libcef.lib",
+                Target = "CEF\\arm64\\release"
+        });
+        nuSpecContentListWinSdk.Add(new NuSpecContent
+        {
+                Source = $"{cefWithSdkCmakeToolset}/arm64/libcef_dll_wrapper/Release/libcef_dll_wrapper.lib",
+                Target = $"CEF\\arm64\\release\\{cefWithSdkCmakeToolset}"
+        });
+        nuSpecContentListWinSdk.Add(new NuSpecContent
+        {
+                Source = $"{cefWithSdkCmakeToolset}/arm64/libcef_dll_wrapper/Release/libcef_dll_wrapper.pdb",
+                Target = $"CEF\\arm64\\release\\{cefWithSdkCmakeToolset}"
+        });
+    }
+
+    NuGetPack(new NuGetPackSettings
+    {
+            Id = $"{product}.sdk.{cefWithSdkCmakeToolset}",
+            Version = buildVersion,
+            Authors = nugetAuthors,
+            Description = $"{productDescription} [CommitId: {commitId}]",
+            Copyright = copyright,
+            ProjectUrl = new Uri(projectUrl),
+            Tags = nugetTags,
+            RequireLicenseAcceptance= false,
+            Files = nuSpecContentListWinSdk.ToArray(),
+            Properties = new Dictionary<string, string>
+            {
+                    {"Configuration", configuration}
+            },
+            BasePath = sdkTargetDir,
+            OutputDirectory = nugetDir
+    });
+});
+
+
+//////////////////////////////////////////////////////////////////////
+// TASK TARGETS
+//////////////////////////////////////////////////////////////////////
+
+Task("Default")
+    .IsDependentOn("Build-NuGet-Package");
+
+//////////////////////////////////////////////////////////////////////
+// EXECUTION
+//////////////////////////////////////////////////////////////////////
+
+RunTarget(target);
