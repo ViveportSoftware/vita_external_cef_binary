@@ -9,7 +9,6 @@
 var configuration = Argument("configuration", "Debug");
 var revision = EnvironmentVariable("BUILD_NUMBER") ?? Argument("revision", "9999");
 var target = Argument("target", "Default");
-var cefWithArm64Binary = EnvironmentVariable("CEF_WITH_ARM64_BINARY") ?? "ON";
 var cefWithAutomateGitRoot = EnvironmentVariable("CEF_WITH_AUTOMATE_GIT_ROOT") ?? "NOTSET";
 var cefWithChromeDepotToolsCommitId = EnvironmentVariable("CEF_WITH_CHROME_DEPOT_TOOLS_COMMIT_ID") ?? "NOTSET";
 var cefWithChromeDepotToolsRoot = EnvironmentVariable("CEF_WITH_CHROME_DEPOT_TOOLS_ROOT") ?? "NOTSET";
@@ -23,10 +22,11 @@ var cefWithMsvsVersion = EnvironmentVariable("CEF_WITH_MSVS_VERSION") ?? "2019";
 var cefWithProprietaryCodecs = EnvironmentVariable("CEF_WITH_PROPRIETARY_CODECS") ?? "OFF";
 var cefWithSdkCmakeToolset = EnvironmentVariable("CEF_WITH_SDK_CMAKE_TOOLSET") ?? "v142";
 var cefWithSourceRoot = EnvironmentVariable("CEF_WITH_SOURCE_ROOT") ?? "NOTSET";
+var cefWithWinArm64Binary = EnvironmentVariable("CEF_WITH_WIN_ARM64_BINARY") ?? "ON";
 var cefWithWinSdkRoot = EnvironmentVariable("CEF_WITH_WIN_SDK_ROOT") ?? "C:\\Program Files (x86)\\Windows Kits\\10";
 var cefWithWinSdkVersion = EnvironmentVariable("CEF_WITH_WIN_SDK_VERSION") ?? "10.0.20348.0";
-var cefWithX64Binary = EnvironmentVariable("CEF_WITH_X64_BINARY") ?? "ON";
-var cefWithX86Binary = EnvironmentVariable("CEF_WITH_X86_BINARY") ?? "ON";
+var cefWithWinX64Binary = EnvironmentVariable("CEF_WITH_WIN_X64_BINARY") ?? "ON";
+var cefWithWinX86Binary = EnvironmentVariable("CEF_WITH_WIN_X86_BINARY") ?? "ON";
 
 //////////////////////////////////////////////////////////////////////
 // PREPARATION
@@ -78,9 +78,9 @@ var cefLocaleFileNames = new []
 cefSdkCmakeOptions.Add("-DUSE_SANDBOX=OFF");
 cefSdkCmakeOptions.Add("-DCEF_RUNTIME_LIBRARY_FLAG=/MD");
 var chromeDepotToolsUrl = "https://storage.googleapis.com/chrome-infra/depot_tools.zip";
-var shouldBuildArm64Binary = "ON".Equals(cefWithArm64Binary);
-var shouldBuildX86Binary = "ON".Equals(cefWithX86Binary);
-var shouldBuildX64Binary = "ON".Equals(cefWithX64Binary);
+var shouldBuildWinArm64Binary = "ON".Equals(cefWithWinArm64Binary);
+var shouldBuildWinX64Binary = "ON".Equals(cefWithWinX64Binary);
+var shouldBuildWinX86Binary = "ON".Equals(cefWithWinX86Binary);
 
 // Define copyright
 var copyright = $"Copyright © 2022 - {DateTime.Now.Year}";
@@ -428,7 +428,7 @@ Task("Detect-Version")
 });
 
 Task("Build-Binary-win-x86")
-    .WithCriteria(() => shouldBuildX86Binary)
+    .WithCriteria(() => shouldBuildWinX86Binary)
     .IsDependentOn("Detect-Version")
     .Does(() =>
 {
@@ -467,7 +467,7 @@ Task("Build-Binary-win-x86")
 });
 
 Task("Build-Binary-win-x64")
-    .WithCriteria(() => shouldBuildX64Binary)
+    .WithCriteria(() => shouldBuildWinX64Binary)
     .IsDependentOn("Build-Binary-win-x86")
     .Does(() =>
 {
@@ -507,7 +507,7 @@ Task("Build-Binary-win-x64")
 });
 
 Task("Build-Binary-win-arm64")
-    .WithCriteria(() => shouldBuildArm64Binary)
+    .WithCriteria(() => shouldBuildWinArm64Binary)
     .IsDependentOn("Build-Binary-win-x64")
     .Does(() =>
 {
@@ -548,7 +548,7 @@ Task("Build-Binary-win-arm64")
 });
 
 Task("Build-SDK-win-x86")
-    .WithCriteria(() => shouldBuildX86Binary)
+    .WithCriteria(() => shouldBuildWinX86Binary)
     .IsDependentOn("Build-Binary-win-arm64")
     .Does(() =>
 {
@@ -577,7 +577,7 @@ Task("Build-SDK-win-x86")
 });
 
 Task("Build-SDK-win-x64")
-    .WithCriteria(() => shouldBuildX64Binary)
+    .WithCriteria(() => shouldBuildWinX64Binary)
     .IsDependentOn("Build-SDK-win-x86")
     .Does(() =>
 {
@@ -606,7 +606,7 @@ Task("Build-SDK-win-x64")
 });
 
 Task("Build-SDK-win-arm64")
-    .WithCriteria(() => shouldBuildX64Binary)
+    .WithCriteria(() => shouldBuildWinArm64Binary)
     .IsDependentOn("Build-SDK-win-x64")
     .Does(() =>
 {
