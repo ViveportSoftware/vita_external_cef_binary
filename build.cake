@@ -107,7 +107,15 @@ var binaryDistribWinX64Dir = binaryDistribRootDir + Directory($"cef_binary_{dist
 var binaryDistribWinX86Dir = binaryDistribRootDir + Directory($"cef_binary_{distribVersion}_windows32");
 
 // Define signing key, password and timestamp server
-var signKeyEnc = EnvironmentVariable("SIGNKEYENC") ?? "NOTSET";
+var signKeyEnc00 = EnvironmentVariable("SIGNKEYENC00");
+var signKeyEnc01 = EnvironmentVariable("SIGNKEYENC01");
+var signKeyEnc02 = EnvironmentVariable("SIGNKEYENC02");
+var signKeyEnc03 = EnvironmentVariable("SIGNKEYENC03");
+var signKeyEnc04 = EnvironmentVariable("SIGNKEYENC04");
+var signKeyEnc05 = EnvironmentVariable("SIGNKEYENC05");
+var signKeyEnc06 = EnvironmentVariable("SIGNKEYENC06");
+var signKeyEnc07 = EnvironmentVariable("SIGNKEYENC07");
+var signKeyEnc = EnvironmentVariable("SIGNKEYENC") ?? signKeyEnc00 + signKeyEnc01 + signKeyEnc02 + signKeyEnc03 + signKeyEnc04 + signKeyEnc05 + signKeyEnc06 + signKeyEnc07 ?? "NOTSET";
 var signPass = EnvironmentVariable("SIGNPASS") ?? "NOTSET";
 var signSha1Uri = new Uri("http://timestamp.digicert.com");
 var signSha256Uri = new Uri("http://timestamp.digicert.com");
