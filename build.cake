@@ -129,6 +129,64 @@ var nugetSource = EnvironmentVariable("NUGET_PUSH_PATH") ?? EnvironmentVariable(
 // METHODS
 //////////////////////////////////////////////////////////////////////
 
+void DetectVersionInSource()
+{
+    if (!string.IsNullOrWhiteSpace(version) && string.IsNullOrWhiteSpace(distribVersion))
+    {
+        return;
+    }
+
+    var cefVersionFile = cefSoureDir
+                       + Directory("chromium")
+                       + Directory("src")
+                       + Directory("cef")
+                       + Directory("include")
+                       + File("cef_version.h");
+    if (!FileExists(cefVersionFile))
+    {
+        throw new Exception($"Can not find {cefVersionFile}");
+    }
+
+    var lines = FileReadLines(cefVersionFile);
+    var unknownVersionPart = "9999";
+    var majorPart = unknownVersionPart;
+    var minorPart = unknownVersionPart;
+    var patchPart = unknownVersionPart;
+    foreach (var line in lines)
+    {
+        var prefix = "#define CEF_VERSION_MAJOR ";
+        if (line.StartsWith(prefix))
+        {
+            majorPart = line.Substring(prefix.Length);
+            continue;
+        }
+        prefix = "#define CEF_VERSION_MINOR ";
+        if (line.StartsWith(prefix))
+        {
+            minorPart = line.Substring(prefix.Length);
+            continue;
+        }
+        prefix = "#define CEF_VERSION_PATCH ";
+        if (line.StartsWith(prefix))
+        {
+            patchPart = line.Substring(prefix.Length);
+            continue;
+        }
+        prefix = "#define CEF_VERSION ";
+        if (line.StartsWith(prefix))
+        {
+            distribVersion = line.Substring(prefix.Length).Trim('"');
+            continue;
+        }
+    }
+    version = $"{majorPart}.{minorPart}.{patchPart}";
+
+    semanticVersion = $"{version}.{revision}";
+    buildVersion = isReleaseBuild ? semanticVersion : $"{version}.0-CI{revision}";
+    Information("Build version: {0}", buildVersion);
+    Information("Build distrib version: {0}", distribVersion);
+}
+
 IDictionary<string, string> GetWindowsEnvironmentVariables(string platform)
 {
     var ninjaArguments = new List<string>();
@@ -374,70 +432,9 @@ Task("Fetch-Source")
     }
 });
 
-Task("Detect-Version")
-    .IsDependentOn("Fetch-Source")
-    .Does(() =>
-{
-    var cefVersionFile = cefSoureDir
-                       + Directory("chromium")
-                       + Directory("src")
-                       + Directory("cef")
-                       + Directory("include")
-                       + File("cef_version.h");
-    if (!FileExists(cefVersionFile))
-    {
-        throw new Exception($"Can not find {cefVersionFile}");
-    }
-
-    var lines = FileReadLines(cefVersionFile);
-    var unknownVersionPart = "9999";
-    var majorPart = unknownVersionPart;
-    var minorPart = unknownVersionPart;
-    var patchPart = unknownVersionPart;
-    foreach (var line in lines)
-    {
-        var prefix = "#define CEF_VERSION_MAJOR ";
-        if (line.StartsWith(prefix))
-        {
-            majorPart = line.Substring(prefix.Length);
-            continue;
-        }
-        prefix = "#define CEF_VERSION_MINOR ";
-        if (line.StartsWith(prefix))
-        {
-            minorPart = line.Substring(prefix.Length);
-            continue;
-        }
-        prefix = "#define CEF_VERSION_PATCH ";
-        if (line.StartsWith(prefix))
-        {
-            patchPart = line.Substring(prefix.Length);
-            continue;
-        }
-        prefix = "#define CEF_VERSION ";
-        if (line.StartsWith(prefix))
-        {
-            distribVersion = line.Substring(prefix.Length).Trim('"');
-            continue;
-        }
-    }
-    version = $"{majorPart}.{minorPart}.{patchPart}";
-    semanticVersion = $"{version}.{revision}";
-    buildVersion = isReleaseBuild ? semanticVersion : $"{version}.0-CI{revision}";
-    Information("Build version: {0}", buildVersion);
-    Information("Build distrib version: {0}", distribVersion);
-
-    // Update path
-    binaryDistribRootDir = cefSoureDir
-            + Directory("chromium")
-            + Directory("src")
-            + Directory("cef")
-            + Directory("binary_distrib");
-});
-
 Task("Build-Binary-win-x86")
     .WithCriteria(() => shouldBuildWinX86Binary)
-    .IsDependentOn("Detect-Version")
+    .IsDependentOn("Fetch-Source")
     .Does(() =>
 {
     var exitCodeWithArgument = StartProcess(
@@ -466,7 +463,14 @@ Task("Build-Binary-win-x86")
         throw new Exception($"Can not build binary. exit code: {exitCodeWithArgument}");
     }
 
+    DetectVersionInSource();
+
     // Update path
+    binaryDistribRootDir = cefSoureDir
+            + Directory("chromium")
+            + Directory("src")
+            + Directory("cef")
+            + Directory("binary_distrib");
     binaryDistribWinX86Dir = binaryDistribRootDir + Directory($"cef_binary_{distribVersion}_windows32");
     if (!DirectoryExists(binaryDistribWinX86Dir))
     {
@@ -506,7 +510,14 @@ Task("Build-Binary-win-x64")
         throw new Exception($"Can not fetch source code. exit code: {exitCodeWithArgument}");
     }
 
+    DetectVersionInSource();
+
     // Update path
+    binaryDistribRootDir = cefSoureDir
+            + Directory("chromium")
+            + Directory("src")
+            + Directory("cef")
+            + Directory("binary_distrib");
     binaryDistribWinX64Dir = binaryDistribRootDir + Directory($"cef_binary_{distribVersion}_windows64");
     if (!DirectoryExists(binaryDistribWinX64Dir))
     {
@@ -547,7 +558,14 @@ Task("Build-Binary-win-arm64")
         throw new Exception($"Can not fetch source code. exit code: {exitCodeWithArgument}");
     }
 
+    DetectVersionInSource();
+
     // Update path
+    binaryDistribRootDir = cefSoureDir
+            + Directory("chromium")
+            + Directory("src")
+            + Directory("cef")
+            + Directory("binary_distrib");
     binaryDistribWinArm64Dir = binaryDistribRootDir + Directory($"cef_binary_{distribVersion}_windowsarm64");
     if (!DirectoryExists(binaryDistribWinArm64Dir))
     {
