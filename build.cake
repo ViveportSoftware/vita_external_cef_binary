@@ -9,6 +9,7 @@
 var configuration = Argument("configuration", "Debug");
 var revision = EnvironmentVariable("BUILD_NUMBER") ?? Argument("revision", "9999");
 var target = Argument("target", "Default");
+var cefWithAutomateGitCommitId = EnvironmentVariable("CEF_WITH_AUTOMATE_GIT_COMMIT_ID") ?? "NOTSET";
 var cefWithAutomateGitRoot = EnvironmentVariable("CEF_WITH_AUTOMATE_GIT_ROOT") ?? "NOTSET";
 var cefWithChromeDepotToolsCommitId = EnvironmentVariable("CEF_WITH_CHROME_DEPOT_TOOLS_COMMIT_ID") ?? "NOTSET";
 var cefWithChromeDepotToolsRoot = EnvironmentVariable("CEF_WITH_CHROME_DEPOT_TOOLS_ROOT") ?? "NOTSET";
@@ -49,7 +50,11 @@ var nugetTags = new [] {"htc", "vita", "cef"};
 var projectUrl = "https://github.com/ViveportSoftware/vita_external_cef_binary/";
 var isCleanBuild = "ON".Equals(cefWithCleanBuild);
 var isReleaseBuild = "Release".Equals(configuration);
-var cefAutomateGitUrl = "https://bitbucket.org/chromiumembedded/cef/raw/master/tools/automate/automate-git.py";
+var cefAutomateGitCommitIdMap = new Dictionary<string, string>()
+{
+        { "5005", "0a10fd4506c6753b38a00182c60de65c9ea30a22" },
+        { "5060", "0a10fd4506c6753b38a00182c60de65c9ea30a22" }
+};
 var cefSdkCmakeOptions = new List<string>();
 var cefLocaleFileNames = new []
 {
@@ -131,7 +136,7 @@ var nugetSource = EnvironmentVariable("NUGET_PUSH_PATH") ?? EnvironmentVariable(
 
 void DetectVersionInSource()
 {
-    if (!string.IsNullOrWhiteSpace(version) && string.IsNullOrWhiteSpace(distribVersion))
+    if (!string.IsNullOrWhiteSpace(version) && !string.IsNullOrWhiteSpace(distribVersion))
     {
         return;
     }
@@ -185,6 +190,19 @@ void DetectVersionInSource()
     buildVersion = isReleaseBuild ? semanticVersion : $"{version}.0-CI{revision}";
     Information("Build version: {0}", buildVersion);
     Information("Build distrib version: {0}", distribVersion);
+}
+
+string GetAutomateGitCommitId()
+{
+    if (!"NOTSET".Equals(cefWithAutomateGitCommitId))
+    {
+        return cefWithAutomateGitCommitId;
+    }
+    if (cefAutomateGitCommitIdMap.ContainsKey(chromiumBranchName))
+    {
+        return cefAutomateGitCommitIdMap[chromiumBranchName];
+    }
+    return "master";
 }
 
 IDictionary<string, string> GetWindowsEnvironmentVariables(string platform)
@@ -378,14 +396,17 @@ Task("Prepare-Automate-Git")
     .IsDependentOn("Prepare-Depot-Tools")
     .Does(() =>
 {
+    var automateGitCommitId = GetAutomateGitCommitId();
+    cefAutomateGitDir = sourceDir + Directory("automate") + Directory(automateGitCommitId);
     if (!"NOTSET".Equals(cefWithAutomateGitRoot))
     {
-        cefAutomateGitDir = Directory(cefWithAutomateGitRoot);
-        cefAutomateGitFile = cefAutomateGitDir + File("automate-git.py");
+        cefAutomateGitDir = Directory(cefWithAutomateGitRoot) + Directory(automateGitCommitId);
     }
+    cefAutomateGitFile = cefAutomateGitDir + File("automate-git.py");
     if (!DirectoryExists(cefAutomateGitDir))
     {
         var cefAutomateGitTempFile = tempDir + File("automate-git.py");
+        var cefAutomateGitUrl = $"https://bitbucket.org/chromiumembedded/cef/raw/{automateGitCommitId}/tools/automate/automate-git.py";
         Information("Try to download {0} to \"{1}\"", cefAutomateGitUrl, cefAutomateGitTempFile);
         DownloadFile(cefAutomateGitUrl, cefAutomateGitTempFile);
         CreateDirectory(cefAutomateGitDir);
