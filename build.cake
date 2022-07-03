@@ -124,7 +124,7 @@ var nugetDir = Directory("./dist") + Directory(configuration) + Directory("nuget
 var homeDir = Directory(EnvironmentVariable("USERPROFILE") ?? EnvironmentVariable("HOME"));
 var cefAutomateGitDir = sourceDir + Directory("automate");
 var cefAutomateGitFile = cefAutomateGitDir + File("automate-git.py");
-var cefSoureDir = sourceDir + Directory("cef");
+var cefSoureDir = sourceDir + Directory("chromium_git");
 var chromeDepotToolsDir = sourceDir + Directory("depot_tools");
 var sdkTargetDir = tempDir + Directory($"{product}.sdk");
 var binaryDistribRootDir = cefSoureDir + Directory("chromium") + Directory("src") + Directory("cef") + Directory("binary_distrib");
@@ -463,6 +463,7 @@ Task("Fetch-Source")
                             .Append($"--download-dir=\"{MakeAbsolute(cefSoureDir).ToString()}\"")
                             .Append(isCleanBuild ? "--force-clean" : "")
                             .Append("--no-build")
+                            .Append("--no-depot-tools-update")
                             .Append("--no-distrib"),
                     EnvironmentVariables = GetWindowsEnvironmentVariables(null),
                     WorkingDirectory = chromeDepotToolsDir
@@ -493,8 +494,9 @@ Task("Build-Binary-win-x86")
                             .Append($"--download-dir=\"{MakeAbsolute(cefSoureDir).ToString()}\"")
                             .Append("--force-build")
                             .Append("--force-distrib")
-                            .Append("--no-update")
                             .Append("--no-debug-build")
+                            .Append("--no-depot-tools-update")
+                            .Append("--no-update")
                             .Append("--verbose-build"),
                     EnvironmentVariables = GetWindowsEnvironmentVariables("x86"),
                     WorkingDirectory = chromeDepotToolsDir
@@ -539,8 +541,9 @@ Task("Build-Binary-win-x64")
                             .Append($"--download-dir=\"{MakeAbsolute(cefSoureDir).ToString()}\"")
                             .Append("--force-build")
                             .Append("--force-distrib")
-                            .Append("--no-update")
                             .Append("--no-debug-build")
+                            .Append("--no-depot-tools-update")
+                            .Append("--no-update")
                             .Append("--verbose-build")
                             .Append("--x64-build"),
                     EnvironmentVariables = GetWindowsEnvironmentVariables("x64"),
@@ -588,8 +591,9 @@ Task("Build-Binary-win-arm64")
                             .Append($"--download-dir=\"{MakeAbsolute(cefSoureDir).ToString()}\"")
                             .Append("--force-build")
                             .Append("--force-distrib")
-                            .Append("--no-update")
                             .Append("--no-debug-build")
+                            .Append("--no-depot-tools-update")
+                            .Append("--no-update")
                             .Append("--verbose-build"),
                     EnvironmentVariables = GetWindowsEnvironmentVariables("arm64"),
                     WorkingDirectory = chromeDepotToolsDir
