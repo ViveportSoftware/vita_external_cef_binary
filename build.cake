@@ -277,17 +277,17 @@ IDictionary<string, string> GetWindowsEnvironmentVariables(string platform)
     path.Add($"{cefWithWinSdkRoot}\\bin\\{cefWithWinSdkVersion}\\{platform}");
     if ("arm64".Equals(platform))
     {
-        path.Add($"{cefWithMsvsRoot}\\VC\\Tools\\MSVC\\{cefWithMsvsVcToolsVersion}\\bin\\Hostx64\\arm64");
+        path.Add($"{cefWithMsvsRoot}\\VC\\Tools\\MSVC\\{cefWithMsvsVcToolsVersion}\\bin\\Hostx64\\{platform}");
         path.Add($"{cefWithMsvsRoot}\\VC\\Tools\\MSVC\\{cefWithMsvsVcToolsVersion}\\bin\\Hostx64\\x64");
     }
     if ("x64".Equals(platform))
     {
-        path.Add($"{cefWithMsvsRoot}\\VC\\Tools\\MSVC\\{cefWithMsvsVcToolsVersion}\\bin\\Hostx64\\x64");
+        path.Add($"{cefWithMsvsRoot}\\VC\\Tools\\MSVC\\{cefWithMsvsVcToolsVersion}\\bin\\Hostx64\\{platform}");
     }
     if ("x86".Equals(platform))
     {
-        path.Add($"{cefWithMsvsRoot}\\VC\\Tools\\MSVC\\{cefWithMsvsVcToolsVersion}\\bin\\Hostx86\\x86");
-        path.Add($"{cefWithMsvsRoot}\\VC\\Tools\\MSVC\\{cefWithMsvsVcToolsVersion}\\bin\\Hostx64\\x86");
+        path.Add($"{cefWithMsvsRoot}\\VC\\Tools\\MSVC\\{cefWithMsvsVcToolsVersion}\\bin\\Hostx64\\{platform}");
+        path.Add($"{cefWithMsvsRoot}\\VC\\Tools\\MSVC\\{cefWithMsvsVcToolsVersion}\\bin\\Hostx86\\{platform}");
     }
     path.Add($"{cefWithMsvsRoot}\\VC\\Redist\\MSVC\\{cefWithMsvsVcRedistVersion}\\{platform}\\{cefWithMsvsVcRedistCrtName}");
 
