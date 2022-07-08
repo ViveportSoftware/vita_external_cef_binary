@@ -50,7 +50,7 @@ var nugetTags = new [] {"htc", "vita", "cef"};
 var projectUrl = "https://github.com/ViveportSoftware/vita_external_cef_binary/";
 var isCleanBuild = "ON".Equals(cefWithCleanBuild);
 var isReleaseBuild = "Release".Equals(configuration);
-var cefAutomateGitCommitIdMap = new Dictionary<string, string>()
+var cefAutomateGitCommitIdMap = new Dictionary<string, string>
 {
         { "3945", "3afa29d499b0ce4dcb847459a79143dee347fa86" },
         { "3987", "3afa29d499b0ce4dcb847459a79143dee347fa86" },
@@ -275,7 +275,19 @@ IDictionary<string, string> GetWindowsEnvironmentVariables(string platform)
 
     var path = new List<string>();
     path.Add($"{cefWithWinSdkRoot}\\bin\\{cefWithWinSdkVersion}\\{platform}");
-    path.Add($"{cefWithMsvsRoot}\\VC\\Tools\\MSVC\\{cefWithMsvsVcToolsVersion}\\bin\\Hostx64\\{platform}");
+    if ("arm64".Equals(platform))
+    {
+        path.Add($"{cefWithMsvsRoot}\\VC\\Tools\\MSVC\\{cefWithMsvsVcToolsVersion}\\bin\\Hostx64\\arm64");
+        path.Add($"{cefWithMsvsRoot}\\VC\\Tools\\MSVC\\{cefWithMsvsVcToolsVersion}\\bin\\Hostx64\\x64");
+    }
+    if ("x64".Equals(platform))
+    {
+        path.Add($"{cefWithMsvsRoot}\\VC\\Tools\\MSVC\\{cefWithMsvsVcToolsVersion}\\bin\\Hostx64\\x64");
+    }
+    if ("x86".Equals(platform))
+    {
+        path.Add($"{cefWithMsvsRoot}\\VC\\Tools\\MSVC\\{cefWithMsvsVcToolsVersion}\\bin\\Hostx86\\x86");
+    }
     path.Add($"{cefWithMsvsRoot}\\VC\\Redist\\MSVC\\{cefWithMsvsVcRedistVersion}\\{platform}\\{cefWithMsvsVcRedistCrtName}");
 
     env["CEF_ENABLE_ARM64"] = "1";
