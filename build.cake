@@ -286,8 +286,8 @@ IDictionary<string, string> GetWindowsEnvironmentVariables(string platform)
     }
     if ("x86".Equals(platform))
     {
-        path.Add($"{cefWithMsvsRoot}\\VC\\Tools\\MSVC\\{cefWithMsvsVcToolsVersion}\\bin\\Hostx64\\{platform}");
         path.Add($"{cefWithMsvsRoot}\\VC\\Tools\\MSVC\\{cefWithMsvsVcToolsVersion}\\bin\\Hostx86\\{platform}");
+        path.Add($"{cefWithMsvsRoot}\\VC\\Tools\\MSVC\\{cefWithMsvsVcToolsVersion}\\bin\\Hostx64\\{platform}");
     }
     path.Add($"{cefWithMsvsRoot}\\VC\\Redist\\MSVC\\{cefWithMsvsVcRedistVersion}\\{platform}\\{cefWithMsvsVcRedistCrtName}");
 
