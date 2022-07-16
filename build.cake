@@ -727,12 +727,19 @@ Task("Sign-Binaries")
     var signKey = "./temp/key.pfx";
     System.IO.File.WriteAllBytes(signKey, Convert.FromBase64String(signKeyEnc));
 
-    var dirsToSign = new[]
+    var dirsToSign = new List<ConvertableDirectoryPath>();
+    if (shouldBuildWinX86Binary)
     {
-            binaryDistribWinX86Dir + Directory("Release"),
-            binaryDistribWinX64Dir + Directory("Release"),
-            binaryDistribWinArm64Dir + Directory("Release")
-    };
+        dirsToSign.Add(binaryDistribWinX86Dir + Directory("Release"));
+    }
+    if (shouldBuildWinX64Binary)
+    {
+        dirsToSign.Add(binaryDistribWinX64Dir + Directory("Release"));
+    }
+    if (shouldBuildWinArm64Binary)
+    {
+        dirsToSign.Add(binaryDistribWinArm64Dir + Directory("Release"));
+    }
     foreach (var dirToSign in dirsToSign)
     {
         var filesToSign = new[]
@@ -768,18 +775,70 @@ Task("Sign-Binaries")
             }
         }
     }
+
+    dirsToSign = new List<ConvertableDirectoryPath>();
+    if (shouldBuildWinX86Binary)
+    {
+        dirsToSign.Add(binaryDistribWinX86Dir + Directory("Release") + Directory("swiftshader"));
+    }
+    if (shouldBuildWinX64Binary)
+    {
+        dirsToSign.Add(binaryDistribWinX64Dir + Directory("Release") + Directory("swiftshader"));
+    }
+    if (shouldBuildWinArm64Binary)
+    {
+        dirsToSign.Add(binaryDistribWinArm64Dir + Directory("Release") + Directory("swiftshader"));
+    }
+    foreach (var dirToSign in dirsToSign)
+    {
+        var filesToSign = new[]
+        {
+                dirToSign + File("libEGL.dll"),
+                dirToSign + File("libGLESv2.dll")
+        };
+        foreach (var fileToSign in filesToSign)
+        {
+            if (!FileExists(fileToSign))
+            {
+                Warning("Binary {0} does not exist. Skipped.", fileToSign);
+            }
+            else
+            {
+                Sign(
+                        fileToSign,
+                        new SignToolSignSettings
+                        {
+                                AppendSignature = true,
+                                TimeStampUri = signSha256Uri,
+                                DigestAlgorithm = SignToolDigestAlgorithm.Sha256,
+                                TimeStampDigestAlgorithm = SignToolDigestAlgorithm.Sha256,
+                                CertPath = signKey,
+                                Password = signPass
+                        }
+                );
+                System.Threading.Thread.Sleep(signIntervalInMilli);
+            }
+        }
+    }
 });
 
 Task("Gzip-Binaries")
     .IsDependentOn("Sign-Binaries")
     .Does(() =>
 {
-    var dirsToGzip = new[]
+    var dirsToGzip = new List<ConvertableDirectoryPath>();
+    if (shouldBuildWinX86Binary)
     {
-            binaryDistribWinX86Dir + Directory("Release"),
-            binaryDistribWinX64Dir + Directory("Release"),
-            binaryDistribWinArm64Dir + Directory("Release")
-    };
+        dirsToGzip.Add(binaryDistribWinX86Dir + Directory("Release"));
+    }
+    if (shouldBuildWinX64Binary)
+    {
+        dirsToGzip.Add(binaryDistribWinX64Dir + Directory("Release"));
+    }
+    if (shouldBuildWinArm64Binary)
+    {
+        dirsToGzip.Add(binaryDistribWinArm64Dir + Directory("Release"));
+    }
     foreach (var dirToGzip in dirsToGzip)
     {
         var filesToGzip = new[]
@@ -811,18 +870,66 @@ Task("Gzip-Binaries")
         }
     }
 
-    dirsToGzip = new[]
+    dirsToGzip = new List<ConvertableDirectoryPath>();
+    if (shouldBuildWinX86Binary)
     {
-            binaryDistribWinX86Dir + Directory("Resources"),
-            binaryDistribWinX64Dir + Directory("Resources"),
-            binaryDistribWinArm64Dir + Directory("Resources")
-    };
+        dirsToGzip.Add(binaryDistribWinX86Dir + Directory("Release") + Directory("swiftshader"));
+    }
+    if (shouldBuildWinX64Binary)
+    {
+        dirsToGzip.Add(binaryDistribWinX64Dir + Directory("Release") + Directory("swiftshader"));
+    }
+    if (shouldBuildWinArm64Binary)
+    {
+        dirsToGzip.Add(binaryDistribWinArm64Dir + Directory("Release") + Directory("swiftshader"));
+    }
     foreach (var dirToGzip in dirsToGzip)
     {
         var filesToGzip = new[]
         {
+                dirToGzip + File("libEGL.dll"),
+                dirToGzip + File("libGLESv2.dll")
+        };
+        foreach (var fileToGzip in filesToGzip)
+        {
+            if (!FileExists(fileToGzip))
+            {
+                Warning("Binary {0} does not exist. Skipped.", fileToGzip);
+            }
+            else
+            {
+                GZipFile(
+                        fileToGzip,
+                        dirToGzip
+                );
+            }
+        }
+    }
+
+    dirsToGzip = new List<ConvertableDirectoryPath>();
+    if (shouldBuildWinX86Binary)
+    {
+        dirsToGzip.Add(binaryDistribWinX86Dir + Directory("Resources"));
+    }
+    if (shouldBuildWinX64Binary)
+    {
+        dirsToGzip.Add(binaryDistribWinX64Dir + Directory("Resources"));
+    }
+    if (shouldBuildWinArm64Binary)
+    {
+        dirsToGzip.Add(binaryDistribWinArm64Dir + Directory("Resources"));
+    }
+    foreach (var dirToGzip in dirsToGzip)
+    {
+        var filesToGzip = new[]
+        {
+                dirToGzip + File("cef.pak"),
+                dirToGzip + File("cef_100_percent.pak"),
+                dirToGzip + File("cef_200_percent.pak"),
+                dirToGzip + File("cef_extensions.pak"),
                 dirToGzip + File("chrome_100_percent.pak"),
                 dirToGzip + File("chrome_200_percent.pak"),
+                dirToGzip + File("devtools_resources.pak"),
                 dirToGzip + File("icudtl.dat"),
                 dirToGzip + File("resources.pak")
         };
@@ -842,12 +949,19 @@ Task("Gzip-Binaries")
         }
     }
 
-    dirsToGzip = new[]
+    dirsToGzip = new List<ConvertableDirectoryPath>();
+    if (shouldBuildWinX86Binary)
     {
-            binaryDistribWinX86Dir + Directory("Resources") + Directory("locales"),
-            binaryDistribWinX64Dir + Directory("Resources") + Directory("locales"),
-            binaryDistribWinArm64Dir + Directory("Resources") + Directory("locales")
-    };
+        dirsToGzip.Add(binaryDistribWinX86Dir + Directory("Resources") + Directory("locales"));
+    }
+    if (shouldBuildWinX64Binary)
+    {
+        dirsToGzip.Add(binaryDistribWinX64Dir + Directory("Resources") + Directory("locales"));
+    }
+    if (shouldBuildWinArm64Binary)
+    {
+        dirsToGzip.Add(binaryDistribWinArm64Dir + Directory("Resources") + Directory("locales"));
+    }
     foreach (var dirToGzip in dirsToGzip)
     {
         foreach (var cefLocaleFileName in cefLocaleFileNames)
