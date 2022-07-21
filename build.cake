@@ -226,6 +226,43 @@ string GetAutomateGitCommitId()
     return "master";
 }
 
+List<NuSpecContent> GetNuSpecContentList(ConvertableDirectoryPath basePath, string[] pathesToPack, string target)
+{
+    var nuSpecContentList = new List<NuSpecContent>();
+    foreach(var pathToPack in pathesToPack)
+    {
+        var pathTokens = pathToPack.Split('/');
+        var pathTokensLength = pathTokens.Length;
+        FilePath fileToPack = null;
+        for(var i = pathTokensLength - 1; i >= 0; i--)
+        {
+            if (fileToPack == null)
+            {
+                fileToPack = File(pathTokens[i]);
+            }
+            else
+            {
+                fileToPack = Directory(pathTokens[i]) + fileToPack;
+            }
+        }
+        fileToPack = basePath + fileToPack;
+        if (!FileExists(fileToPack))
+        {
+            Warning("Binary {0} does not exist. Skipped.", fileToPack);
+        }
+        else
+        {
+            nuSpecContentList.Add(new NuSpecContent
+            {
+                    Source = pathToPack,
+                    Target = target
+            });
+        }
+    }
+
+    return nuSpecContentList;
+}
+
 IDictionary<string, string> GetWindowsEnvironmentVariables(string platform)
 {
     var ninjaArguments = new List<string>();
@@ -988,221 +1025,197 @@ Task("Build-NuGet-Package")
 {
     CreateDirectory(nugetDir);
 
-    var nuSpecContentListWinBase = new List<NuSpecContent>();
-    nuSpecContentListWinBase.Add(new NuSpecContent
+    var pathesToCef = new []
     {
-            Source = "Release/chrome_elf.dll",
-            Target = "CEF"
-    });
-    nuSpecContentListWinBase.Add(new NuSpecContent
-    {
-            Source = "Release/chrome_elf.dll.gz",
-            Target = "CEF"
-    });
-    nuSpecContentListWinBase.Add(new NuSpecContent
-    {
-            Source = "Release/libcef.dll",
-            Target = "CEF"
-    });
-    nuSpecContentListWinBase.Add(new NuSpecContent
-    {
-            Source = "Release/libcef.dll.gz",
-            Target = "CEF"
-    });
-    nuSpecContentListWinBase.Add(new NuSpecContent
-    {
-            Source = "Release/libEGL.dll",
-            Target = "CEF"
-    });
-    nuSpecContentListWinBase.Add(new NuSpecContent
-    {
-            Source = "Release/libEGL.dll.gz",
-            Target = "CEF"
-    });
-    nuSpecContentListWinBase.Add(new NuSpecContent
-    {
-            Source = "Release/libGLESv2.dll",
-            Target = "CEF"
-    });
-    nuSpecContentListWinBase.Add(new NuSpecContent
-    {
-            Source = "Release/libGLESv2.dll.gz",
-            Target = "CEF"
-    });
-    nuSpecContentListWinBase.Add(new NuSpecContent
-    {
-            Source = "Release/vk_swiftshader.dll",
-            Target = "CEF"
-    });
-    nuSpecContentListWinBase.Add(new NuSpecContent
-    {
-            Source = "Release/vk_swiftshader.dll.gz",
-            Target = "CEF"
-    });
-    nuSpecContentListWinBase.Add(new NuSpecContent
-    {
-            Source = "Release/vk_swiftshader_icd.json",
-            Target = "CEF"
-    });
-    nuSpecContentListWinBase.Add(new NuSpecContent
-    {
-            Source = "Release/vk_swiftshader_icd.json.gz",
-            Target = "CEF"
-    });
-    nuSpecContentListWinBase.Add(new NuSpecContent
-    {
-            Source = "Release/vulkan-1.dll",
-            Target = "CEF"
-    });
-    nuSpecContentListWinBase.Add(new NuSpecContent
-    {
-            Source = "Release/vulkan-1.dll.gz",
-            Target = "CEF"
-    });
-    nuSpecContentListWinBase.Add(new NuSpecContent
-    {
-            Source = "Resources/chrome_100_percent.pak",
-            Target = "CEF"
-    });
-    nuSpecContentListWinBase.Add(new NuSpecContent
-    {
-            Source = "Resources/chrome_100_percent.pak.gz",
-            Target = "CEF"
-    });
-    nuSpecContentListWinBase.Add(new NuSpecContent
-    {
-            Source = "Resources/chrome_200_percent.pak",
-            Target = "CEF"
-    });
-    nuSpecContentListWinBase.Add(new NuSpecContent
-    {
-            Source = "Resources/chrome_200_percent.pak.gz",
-            Target = "CEF"
-    });
-    nuSpecContentListWinBase.Add(new NuSpecContent
-    {
-            Source = "Resources/icudtl.dat",
-            Target = "CEF"
-    });
-    nuSpecContentListWinBase.Add(new NuSpecContent
-    {
-            Source = "Resources/icudtl.dat.gz",
-            Target = "CEF"
-    });
-    nuSpecContentListWinBase.Add(new NuSpecContent
-    {
-            Source = "Resources/resources.pak",
-            Target = "CEF"
-    });
-    nuSpecContentListWinBase.Add(new NuSpecContent
-    {
-            Source = "Resources/resources.pak.gz",
-            Target = "CEF"
-    });
+            "Release/chrome_elf.dll",
+            "Release/chrome_elf.dll.gz",
+            "Release/d3dcompiler_47.dll",
+            "Release/d3dcompiler_47.dll.gz",
+            "Release/libcef.dll",
+            "Release/libcef.dll.gz",
+            "Release/libEGL.dll",
+            "Release/libEGL.dll.gz",
+            "Release/libGLESv2.dll",
+            "Release/libGLESv2.dll.gz",
+            "Release/snapshot_blob.bin",
+            "Release/snapshot_blob.bin.gz",
+            "Release/v8_context_snapshot.bin",
+            "Release/v8_context_snapshot.bin.gz",
+            "Release/vk_swiftshader.dll",
+            "Release/vk_swiftshader.dll.gz",
+            "Release/vk_swiftshader_icd.json",
+            "Release/vk_swiftshader_icd.json.gz",
+            "Release/vulkan-1.dll",
+            "Release/vulkan-1.dll.gz",
+            "Resources/cef.pak",
+            "Resources/cef.pak.gz",
+            "Resources/cef_100_percent.pak",
+            "Resources/cef_100_percent.pak.gz",
+            "Resources/cef_200_percent.pak",
+            "Resources/cef_200_percent.pak.gz",
+            "Resources/cef_extensions.pak",
+            "Resources/cef_extensions.pak.gz",
+            "Resources/chrome_100_percent.pak",
+            "Resources/chrome_100_percent.pak.gz",
+            "Resources/chrome_200_percent.pak",
+            "Resources/chrome_200_percent.pak.gz",
+            "Resources/devtools_resources.pak",
+            "Resources/devtools_resources.pak.gz",
+            "Resources/icudtl.dat",
+            "Resources/icudtl.dat.gz",
+            "Resources/resources.pak",
+            "Resources/resources.pak.gz"
+    };
 
+    var pathListToCefLocales = new List<string>();
     foreach (var cefLocaleFileName in cefLocaleFileNames)
     {
-        nuSpecContentListWinBase.Add(new NuSpecContent
-        {
-                Source = $"Resources/locales/{cefLocaleFileName}",
-                Target = "CEF\\locales"
-        });
-        nuSpecContentListWinBase.Add(new NuSpecContent
-        {
-                Source = $"Resources/locales/{cefLocaleFileName}.gz",
-                Target = "CEF\\locales"
-        });
+        pathListToCefLocales.Add($"Resources/locales/{cefLocaleFileName}");
+        pathListToCefLocales.Add($"Resources/locales/{cefLocaleFileName}.gz");
     }
+    var pathesToCefLocales = pathListToCefLocales.ToArray();
 
-    var nuSpecContentListWinArm64 = new List<NuSpecContent>(nuSpecContentListWinBase);
-    nuSpecContentListWinBase.Add(new NuSpecContent
+    var pathesToCefSwiftshader = new []
     {
-            Source = "Release/d3dcompiler_47.dll",
-            Target = "CEF"
-    });
-    nuSpecContentListWinBase.Add(new NuSpecContent
-    {
-            Source = "Release/d3dcompiler_47.dll.gz",
-            Target = "CEF"
-    });
-    var nuSpecContentListWinX64 = new List<NuSpecContent>(nuSpecContentListWinBase);
-    var nuSpecContentListWinX86 = new List<NuSpecContent>(nuSpecContentListWinBase);
+            "Release/swiftshader/libEGL.dll",
+            "Release/swiftshader/libEGL.dll.gz",
+            "Release/swiftshader/libGLESv2.dll",
+            "Release/swiftshader/libGLESv2.dll.gz"
+    };
 
     CopyDirectory(
             sourceDir + Directory("nuget"),
             binaryDistribRootDir
     );
 
-    nuSpecContentListWinArm64.Add(new NuSpecContent
+    if (shouldBuildWinX86Binary)
     {
-            Source = $"../{product}.redist.win-arm64.props",
-            Target = "build"
-    });
-    nuSpecContentListWinX64.Add(new NuSpecContent
-    {
-            Source = $"../{product}.redist.win-x64.props",
-            Target = "build"
-    });
-    nuSpecContentListWinX86.Add(new NuSpecContent
-    {
-            Source = $"../{product}.redist.win-x86.props",
-            Target = "build"
-    });
+        var nuSpecContentListWinX86 = GetNuSpecContentList(
+                binaryDistribWinX86Dir,
+                pathesToCef,
+                "CEF"
+        );
+        nuSpecContentListWinX86.AddRange(GetNuSpecContentList(
+                binaryDistribWinX86Dir,
+                pathesToCefLocales,
+                "CEF\\locales"
+        ));
+        nuSpecContentListWinX86.AddRange(GetNuSpecContentList(
+                binaryDistribWinX86Dir,
+                pathesToCefSwiftshader,
+                "CEF\\swiftshader"
+        ));
+        nuSpecContentListWinX86.Add(new NuSpecContent
+        {
+                Source = $"../{product}.redist.win-x86.props",
+                Target = "build"
+        });
 
-    NuGetPack(new NuGetPackSettings
+        NuGetPack(new NuGetPackSettings
+        {
+                Id = $"{product}.redist.win-x86",
+                Version = buildVersion,
+                Authors = nugetAuthors,
+                Description = $"{productDescription} [CommitId: {commitId}]",
+                Copyright = copyright,
+                ProjectUrl = new Uri(projectUrl),
+                Tags = nugetTags,
+                RequireLicenseAcceptance= false,
+                Files = nuSpecContentListWinX86.ToArray(),
+                Properties = new Dictionary<string, string>
+                {
+                        {"Configuration", configuration}
+                },
+                BasePath = binaryDistribWinX86Dir,
+                OutputDirectory = nugetDir
+        });
+    }
+
+    if (shouldBuildWinX64Binary)
     {
-            Id = $"{product}.redist.win-x86",
-            Version = buildVersion,
-            Authors = nugetAuthors,
-            Description = $"{productDescription} [CommitId: {commitId}]",
-            Copyright = copyright,
-            ProjectUrl = new Uri(projectUrl),
-            Tags = nugetTags,
-            RequireLicenseAcceptance= false,
-            Files = nuSpecContentListWinX86.ToArray(),
-            Properties = new Dictionary<string, string>
-            {
-                    {"Configuration", configuration}
-            },
-            BasePath = binaryDistribWinX86Dir,
-            OutputDirectory = nugetDir
-    });
-    NuGetPack(new NuGetPackSettings
+        var nuSpecContentListWinX64 = GetNuSpecContentList(
+                binaryDistribWinX64Dir,
+                pathesToCef,
+                "CEF"
+        );
+        nuSpecContentListWinX64.AddRange(GetNuSpecContentList(
+                binaryDistribWinX64Dir,
+                pathesToCefLocales,
+                "CEF\\locales"
+        ));
+        nuSpecContentListWinX64.AddRange(GetNuSpecContentList(
+                binaryDistribWinX64Dir,
+                pathesToCefSwiftshader,
+                "CEF\\swiftshader"
+        ));
+        nuSpecContentListWinX64.Add(new NuSpecContent
+        {
+                Source = $"../{product}.redist.win-x64.props",
+                Target = "build"
+        });
+
+        NuGetPack(new NuGetPackSettings
+        {
+                Id = $"{product}.redist.win-x64",
+                Version = buildVersion,
+                Authors = nugetAuthors,
+                Description = $"{productDescription} [CommitId: {commitId}]",
+                Copyright = copyright,
+                ProjectUrl = new Uri(projectUrl),
+                Tags = nugetTags,
+                RequireLicenseAcceptance= false,
+                Files = nuSpecContentListWinX64.ToArray(),
+                Properties = new Dictionary<string, string>
+                {
+                        {"Configuration", configuration}
+                },
+                BasePath = binaryDistribWinX64Dir,
+                OutputDirectory = nugetDir
+        });
+    }
+
+    if (shouldBuildWinArm64Binary)
     {
-            Id = $"{product}.redist.win-x64",
-            Version = buildVersion,
-            Authors = nugetAuthors,
-            Description = $"{productDescription} [CommitId: {commitId}]",
-            Copyright = copyright,
-            ProjectUrl = new Uri(projectUrl),
-            Tags = nugetTags,
-            RequireLicenseAcceptance= false,
-            Files = nuSpecContentListWinX64.ToArray(),
-            Properties = new Dictionary<string, string>
-            {
-                    {"Configuration", configuration}
-            },
-            BasePath = binaryDistribWinX64Dir,
-            OutputDirectory = nugetDir
-    });
-    NuGetPack(new NuGetPackSettings
-    {
-            Id = $"{product}.redist.win-arm64",
-            Version = buildVersion,
-            Authors = nugetAuthors,
-            Description = $"{productDescription} [CommitId: {commitId}]",
-            Copyright = copyright,
-            ProjectUrl = new Uri(projectUrl),
-            Tags = nugetTags,
-            RequireLicenseAcceptance= false,
-            Files = nuSpecContentListWinArm64.ToArray(),
-            Properties = new Dictionary<string, string>
-            {
-                    {"Configuration", configuration}
-            },
-            BasePath = binaryDistribWinArm64Dir,
-            OutputDirectory = nugetDir
-    });
+        var nuSpecContentListWinArm64 = GetNuSpecContentList(
+                binaryDistribWinArm64Dir,
+                pathesToCef,
+                "CEF"
+        );
+        nuSpecContentListWinArm64.AddRange(GetNuSpecContentList(
+                binaryDistribWinArm64Dir,
+                pathesToCefLocales,
+                "CEF\\locales"
+        ));
+        nuSpecContentListWinArm64.AddRange(GetNuSpecContentList(
+                binaryDistribWinArm64Dir,
+                pathesToCefSwiftshader,
+                "CEF\\swiftshader"
+        ));
+        nuSpecContentListWinArm64.Add(new NuSpecContent
+        {
+                Source = $"../{product}.redist.win-arm64.props",
+                Target = "build"
+        });
+
+        NuGetPack(new NuGetPackSettings
+        {
+                Id = $"{product}.redist.win-arm64",
+                Version = buildVersion,
+                Authors = nugetAuthors,
+                Description = $"{productDescription} [CommitId: {commitId}]",
+                Copyright = copyright,
+                ProjectUrl = new Uri(projectUrl),
+                Tags = nugetTags,
+                RequireLicenseAcceptance= false,
+                Files = nuSpecContentListWinArm64.ToArray(),
+                Properties = new Dictionary<string, string>
+                {
+                        {"Configuration", configuration}
+                },
+                BasePath = binaryDistribWinArm64Dir,
+                OutputDirectory = nugetDir
+        });
+    }
 
     var nuSpecContentListWinSdk = new List<NuSpecContent>();
     var sdkPropName = $"{product}.sdk.{cefWithSdkCmakeToolset}.props";
