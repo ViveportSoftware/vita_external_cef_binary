@@ -695,6 +695,7 @@ Task("Build-SDK-win-x86")
                     Configuration = "Release",
                     MaxCpuCount = 0
             }
+            .WithTarget("cefsimple")
     );
 });
 
@@ -724,6 +725,7 @@ Task("Build-SDK-win-x64")
                     Configuration = "Release",
                     MaxCpuCount = 0
             }
+            .WithTarget("cefsimple")
     );
 });
 
@@ -753,6 +755,7 @@ Task("Build-SDK-win-arm64")
                     Configuration = "Release",
                     MaxCpuCount = 0
             }
+            .WithTarget("cefsimple")
     );
 });
 
@@ -1275,11 +1278,6 @@ Task("Build-NuGet-Package")
                 Source = $"{cefWithSdkCmakeToolset}/win32/libcef_dll_wrapper/Release/libcef_dll_wrapper.lib",
                 Target = $"CEF\\win32\\release\\{cefWithSdkCmakeToolset}"
         });
-        nuSpecContentListWinSdk.Add(new NuSpecContent
-        {
-                Source = $"{cefWithSdkCmakeToolset}/win32/libcef_dll_wrapper/Release/libcef_dll_wrapper.pdb",
-                Target = $"CEF\\win32\\release\\{cefWithSdkCmakeToolset}"
-        });
     }
     var libcefLibFileWinX64 = binaryDistribWinX64Dir + Directory("Release") + File("libcef.lib");
     if (FileExists(libcefLibFileWinX64))
@@ -1298,11 +1296,6 @@ Task("Build-NuGet-Package")
                 Source = $"{cefWithSdkCmakeToolset}/x64/libcef_dll_wrapper/Release/libcef_dll_wrapper.lib",
                 Target = $"CEF\\x64\\release\\{cefWithSdkCmakeToolset}"
         });
-        nuSpecContentListWinSdk.Add(new NuSpecContent
-        {
-                Source = $"{cefWithSdkCmakeToolset}/x64/libcef_dll_wrapper/Release/libcef_dll_wrapper.pdb",
-                Target = $"CEF\\x64\\release\\{cefWithSdkCmakeToolset}"
-        });
     }
     var libcefLibFileWinArm64 = binaryDistribWinArm64Dir + Directory("Release") + File("libcef.lib");
     if (FileExists(libcefLibFileWinArm64))
@@ -1319,11 +1312,6 @@ Task("Build-NuGet-Package")
         nuSpecContentListWinSdk.Add(new NuSpecContent
         {
                 Source = $"{cefWithSdkCmakeToolset}/arm64/libcef_dll_wrapper/Release/libcef_dll_wrapper.lib",
-                Target = $"CEF\\arm64\\release\\{cefWithSdkCmakeToolset}"
-        });
-        nuSpecContentListWinSdk.Add(new NuSpecContent
-        {
-                Source = $"{cefWithSdkCmakeToolset}/arm64/libcef_dll_wrapper/Release/libcef_dll_wrapper.pdb",
                 Target = $"CEF\\arm64\\release\\{cefWithSdkCmakeToolset}"
         });
     }
