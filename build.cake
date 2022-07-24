@@ -21,13 +21,19 @@ var cefWithMsvsVcRedistVersion = EnvironmentVariable("CEF_WITH_MSVS_VC_REDIST_VE
 var cefWithMsvsVcToolsVersion = EnvironmentVariable("CEF_WITH_MSVS_VC_TOOLS_VERSION") ?? "14.29.30133";
 var cefWithMsvsVersion = EnvironmentVariable("CEF_WITH_MSVS_VERSION") ?? "2019";
 var cefWithProprietaryCodecs = EnvironmentVariable("CEF_WITH_PROPRIETARY_CODECS") ?? "OFF";
-var cefWithSdkCmakeToolset = EnvironmentVariable("CEF_WITH_SDK_CMAKE_TOOLSET") ?? "v142";
+var cefWithSdkCmakeMsbuildVersion = EnvironmentVariable("CEF_WITH_SDK_CMAKE_MSBUILD_VERSION") ?? "default";
+var cefWithSdkCmakeToolsetV120 = EnvironmentVariable("CEF_WITH_SDK_CMAKE_TOOLSET_V120") ?? "OFF";
+var cefWithSdkCmakeToolsetV140 = EnvironmentVariable("CEF_WITH_SDK_CMAKE_TOOLSET_V140") ?? "OFF";
+var cefWithSdkCmakeToolsetV141 = EnvironmentVariable("CEF_WITH_SDK_CMAKE_TOOLSET_V141") ?? "OFF";
+var cefWithSdkCmakeToolsetV142 = EnvironmentVariable("CEF_WITH_SDK_CMAKE_TOOLSET_V142") ?? "ON";
+var cefWithSdkCmakeToolsetV143 = EnvironmentVariable("CEF_WITH_SDK_CMAKE_TOOLSET_V143") ?? "OFF";
 var cefWithSourceRoot = EnvironmentVariable("CEF_WITH_SOURCE_ROOT") ?? "NOTSET";
 var cefWithWinArm64Binary = EnvironmentVariable("CEF_WITH_WIN_ARM64_BINARY") ?? "ON";
 var cefWithWinSdkRoot = EnvironmentVariable("CEF_WITH_WIN_SDK_ROOT") ?? "C:\\Program Files (x86)\\Windows Kits\\10";
 var cefWithWinSdkVersion = EnvironmentVariable("CEF_WITH_WIN_SDK_VERSION") ?? "10.0.20348.0";
 var cefWithWinX64Binary = EnvironmentVariable("CEF_WITH_WIN_X64_BINARY") ?? "ON";
 var cefWithWinX86Binary = EnvironmentVariable("CEF_WITH_WIN_X86_BINARY") ?? "ON";
+
 
 //////////////////////////////////////////////////////////////////////
 // PREPARATION
@@ -104,6 +110,17 @@ var cefLocaleFileNames = new []
 cefSdkCmakeOptions.Add("-DUSE_SANDBOX=OFF");
 cefSdkCmakeOptions.Add("-DCEF_RUNTIME_LIBRARY_FLAG=/MD");
 var chromeDepotToolsUrl = "https://storage.googleapis.com/chrome-infra/depot_tools.zip";
+var cefSdkMsbuildSettings = new MSBuildSettings()
+{
+        Configuration = "Release",
+        MaxCpuCount = 0
+}
+.WithTarget("cefsimple");
+var shouldBuildSdkV120 = "ON".Equals(cefWithSdkCmakeToolsetV120);
+var shouldBuildSdkV140 = "ON".Equals(cefWithSdkCmakeToolsetV140);
+var shouldBuildSdkV141 = "ON".Equals(cefWithSdkCmakeToolsetV141);
+var shouldBuildSdkV142 = "ON".Equals(cefWithSdkCmakeToolsetV142);
+var shouldBuildSdkV143 = "ON".Equals(cefWithSdkCmakeToolsetV143);
 var shouldBuildWinArm64Binary = "ON".Equals(cefWithWinArm64Binary);
 var shouldBuildWinX64Binary = "ON".Equals(cefWithWinX64Binary);
 var shouldBuildWinX86Binary = "ON".Equals(cefWithWinX86Binary);
@@ -263,6 +280,32 @@ List<NuSpecContent> GetNuSpecContentList(ConvertableDirectoryPath basePath, stri
     return nuSpecContentList;
 }
 
+List<string> GetCefSdkCmakeToolsetList()
+{
+    var toolsetList = new List<string>();
+    if (shouldBuildSdkV120)
+    {
+        toolsetList.Add("v120");
+    }
+    if (shouldBuildSdkV140)
+    {
+        toolsetList.Add("v140");
+    }
+    if (shouldBuildSdkV141)
+    {
+        toolsetList.Add("v141");
+    }
+    if (shouldBuildSdkV142)
+    {
+        toolsetList.Add("v142");
+    }
+    if (shouldBuildSdkV143)
+    {
+        toolsetList.Add("v143");
+    }
+    return toolsetList;
+}
+
 IDictionary<string, string> GetWindowsEnvironmentVariables(string platform)
 {
     var ninjaArguments = new List<string>();
@@ -409,6 +452,12 @@ Task("Display-Config")
     Information("Build target: {0}", target);
     Information("Build configuration: {0}", configuration);
     Information("Build commitId: {0}", commitId);
+
+    if("vs2022".Equals(cefWithSdkCmakeMsbuildVersion))
+    {
+        cefSdkMsbuildSettings.ToolVersion = MSBuildToolVersion.VS2022;
+    }
+    Information("Build using MSBuild version: {0}", cefSdkMsbuildSettings.ToolVersion);
 });
 
 Task("Clean-Workspace")
@@ -674,29 +723,27 @@ Task("Build-SDK-win-x86")
     .IsDependentOn("Build-Binary-win-arm64")
     .Does(() =>
 {
-    var sdkTargetBuildDir = sdkTargetDir
-            + Directory(cefWithSdkCmakeToolset)
-            + Directory("win32");
-    CreateDirectory(sdkTargetBuildDir);
-    CMake(
-            binaryDistribWinX86Dir,
-            new CMakeSettings
-            {
-                    Options = cefSdkCmakeOptions.ToArray(),
-                    OutputPath = sdkTargetBuildDir,
-                    Platform = "Win32",
-                    Toolset = cefWithSdkCmakeToolset
-            }
-    );
-    MSBuild(
-            sdkTargetBuildDir + File("cef.sln"),
-            new MSBuildSettings()
-            {
-                    Configuration = "Release",
-                    MaxCpuCount = 0
-            }
-            .WithTarget("cefsimple")
-    );
+    foreach(var toolset in GetCefSdkCmakeToolsetList())
+    {
+        var sdkTargetBuildDir = sdkTargetDir
+                + Directory(toolset)
+                + Directory("win32");
+        CreateDirectory(sdkTargetBuildDir);
+        CMake(
+                binaryDistribWinX86Dir,
+                new CMakeSettings
+                {
+                        Options = cefSdkCmakeOptions.ToArray(),
+                        OutputPath = sdkTargetBuildDir,
+                        Platform = "Win32",
+                        Toolset = toolset
+                }
+        );
+        MSBuild(
+                sdkTargetBuildDir + File("cef.sln"),
+                cefSdkMsbuildSettings
+        );
+    }
 });
 
 Task("Build-SDK-win-x64")
@@ -704,29 +751,27 @@ Task("Build-SDK-win-x64")
     .IsDependentOn("Build-SDK-win-x86")
     .Does(() =>
 {
-    var sdkTargetBuildDir = sdkTargetDir
-            + Directory(cefWithSdkCmakeToolset)
-            + Directory("x64");
-    CreateDirectory(sdkTargetBuildDir);
-    CMake(
-            binaryDistribWinX64Dir,
-            new CMakeSettings
-            {
-                    Options = cefSdkCmakeOptions.ToArray(),
-                    OutputPath = sdkTargetBuildDir,
-                    Platform = "x64",
-                    Toolset = cefWithSdkCmakeToolset
-            }
-    );
-    MSBuild(
-            sdkTargetBuildDir + File("cef.sln"),
-            new MSBuildSettings()
-            {
-                    Configuration = "Release",
-                    MaxCpuCount = 0
-            }
-            .WithTarget("cefsimple")
-    );
+    foreach(var toolset in GetCefSdkCmakeToolsetList())
+    {
+        var sdkTargetBuildDir = sdkTargetDir
+                + Directory(toolset)
+                + Directory("x64");
+        CreateDirectory(sdkTargetBuildDir);
+        CMake(
+                binaryDistribWinX64Dir,
+                new CMakeSettings
+                {
+                        Options = cefSdkCmakeOptions.ToArray(),
+                        OutputPath = sdkTargetBuildDir,
+                        Platform = "x64",
+                        Toolset = toolset
+                }
+        );
+        MSBuild(
+                sdkTargetBuildDir + File("cef.sln"),
+                cefSdkMsbuildSettings
+        );
+    }
 });
 
 Task("Build-SDK-win-arm64")
@@ -734,29 +779,27 @@ Task("Build-SDK-win-arm64")
     .IsDependentOn("Build-SDK-win-x64")
     .Does(() =>
 {
-    var sdkTargetBuildDir = sdkTargetDir
-            + Directory(cefWithSdkCmakeToolset)
-            + Directory("arm64");
-    CreateDirectory(sdkTargetBuildDir);
-    CMake(
-            binaryDistribWinArm64Dir,
-            new CMakeSettings
-            {
-                    Options = cefSdkCmakeOptions.ToArray(),
-                    OutputPath = sdkTargetBuildDir,
-                    Platform = "arm64",
-                    Toolset = cefWithSdkCmakeToolset
-            }
-    );
-    MSBuild(
-            sdkTargetBuildDir + File("cef.sln"),
-            new MSBuildSettings()
-            {
-                    Configuration = "Release",
-                    MaxCpuCount = 0
-            }
-            .WithTarget("cefsimple")
-    );
+    foreach(var toolset in GetCefSdkCmakeToolsetList())
+    {
+        var sdkTargetBuildDir = sdkTargetDir
+                + Directory(toolset)
+                + Directory("arm64");
+        CreateDirectory(sdkTargetBuildDir);
+        CMake(
+                binaryDistribWinArm64Dir,
+                new CMakeSettings
+                {
+                        Options = cefSdkCmakeOptions.ToArray(),
+                        OutputPath = sdkTargetBuildDir,
+                        Platform = "arm64",
+                        Toolset = toolset
+                }
+        );
+        MSBuild(
+                sdkTargetBuildDir + File("cef.sln"),
+                cefSdkMsbuildSettings
+        );
+    }
 });
 
 Task("Sign-Binaries")
@@ -1220,120 +1263,123 @@ Task("Build-NuGet-Package")
         });
     }
 
-    var nuSpecContentListWinSdk = new List<NuSpecContent>();
-    var sdkPropName = $"{product}.sdk.{cefWithSdkCmakeToolset}.props";
-    FileWriteText(
-            sdkTargetDir + File(sdkPropName),
-            ""
-                    + "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
-                    + "<Project ToolsVersion=\"4.0\" xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">\n"
-                    + "  <PropertyGroup>\n"
-                    + "    <CefSdkVer>" + $"{product}.sdk.{cefWithSdkCmakeToolset}.{buildVersion}" + "</CefSdkVer>\n"
-                    + "  </PropertyGroup>\n"
-                    + "</Project>"
-    );
-    nuSpecContentListWinSdk.Add(new NuSpecContent
+    foreach(var toolset in GetCefSdkCmakeToolsetList())
     {
-            Source = sdkPropName,
-            Target = "build"
-    });
-
-    var includeDir = binaryDistribWinArm64Dir + Directory("include");
-    if (!DirectoryExists(includeDir))
-    {
-        includeDir = binaryDistribWinX64Dir + Directory("include");
-    }
-    if (!DirectoryExists(includeDir))
-    {
-        includeDir = binaryDistribWinX86Dir + Directory("include");
-    }
-    if (!DirectoryExists(includeDir))
-    {
-        throw new Exception("Can not find include directory.");
-    }
-    CopyDirectory(
-            includeDir,
-            sdkTargetDir + Directory("include")
-    );
-    nuSpecContentListWinSdk.Add(new NuSpecContent
-    {
-            Source = "include/**",
-            Target = "CEF"
-    });
-
-    var libcefLibFileWinX86 = binaryDistribWinX86Dir + Directory("Release") + File("libcef.lib");
-    if (FileExists(libcefLibFileWinX86))
-    {
-        CopyFile(
-                libcefLibFileWinX86,
-                sdkTargetDir + Directory(cefWithSdkCmakeToolset) + Directory("win32") + File("libcef.lib")
+        var nuSpecContentListWinSdk = new List<NuSpecContent>();
+        var sdkPropName = $"{product}.sdk.{toolset}.props";
+        FileWriteText(
+                sdkTargetDir + File(sdkPropName),
+                ""
+                        + "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+                        + "<Project ToolsVersion=\"4.0\" xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">\n"
+                        + "  <PropertyGroup>\n"
+                        + "    <CefSdkVer>" + $"{product}.sdk.{toolset}.{buildVersion}" + "</CefSdkVer>\n"
+                        + "  </PropertyGroup>\n"
+                        + "</Project>"
         );
         nuSpecContentListWinSdk.Add(new NuSpecContent
         {
-                Source = $"{cefWithSdkCmakeToolset}/win32/libcef.lib",
-                Target = "CEF\\win32\\release"
+                Source = sdkPropName,
+                Target = "build"
         });
-        nuSpecContentListWinSdk.Add(new NuSpecContent
-        {
-                Source = $"{cefWithSdkCmakeToolset}/win32/libcef_dll_wrapper/Release/libcef_dll_wrapper.lib",
-                Target = $"CEF\\win32\\release\\{cefWithSdkCmakeToolset}"
-        });
-    }
-    var libcefLibFileWinX64 = binaryDistribWinX64Dir + Directory("Release") + File("libcef.lib");
-    if (FileExists(libcefLibFileWinX64))
-    {
-        CopyFile(
-                libcefLibFileWinX64,
-                sdkTargetDir + Directory(cefWithSdkCmakeToolset) + Directory("x64") + File("libcef.lib")
-        );
-        nuSpecContentListWinSdk.Add(new NuSpecContent
-        {
-                Source = $"{cefWithSdkCmakeToolset}/x64/libcef.lib",
-                Target = "CEF\\x64\\release"
-        });
-        nuSpecContentListWinSdk.Add(new NuSpecContent
-        {
-                Source = $"{cefWithSdkCmakeToolset}/x64/libcef_dll_wrapper/Release/libcef_dll_wrapper.lib",
-                Target = $"CEF\\x64\\release\\{cefWithSdkCmakeToolset}"
-        });
-    }
-    var libcefLibFileWinArm64 = binaryDistribWinArm64Dir + Directory("Release") + File("libcef.lib");
-    if (FileExists(libcefLibFileWinArm64))
-    {
-        CopyFile(
-                libcefLibFileWinArm64,
-                sdkTargetDir + Directory(cefWithSdkCmakeToolset) + Directory("arm64") + File("libcef.lib")
-        );
-        nuSpecContentListWinSdk.Add(new NuSpecContent
-        {
-                Source = $"{cefWithSdkCmakeToolset}/arm64/libcef.lib",
-                Target = "CEF\\arm64\\release"
-        });
-        nuSpecContentListWinSdk.Add(new NuSpecContent
-        {
-                Source = $"{cefWithSdkCmakeToolset}/arm64/libcef_dll_wrapper/Release/libcef_dll_wrapper.lib",
-                Target = $"CEF\\arm64\\release\\{cefWithSdkCmakeToolset}"
-        });
-    }
 
-    NuGetPack(new NuGetPackSettings
-    {
-            Id = $"{product}.sdk.{cefWithSdkCmakeToolset}",
-            Version = buildVersion,
-            Authors = nugetAuthors,
-            Description = $"{productDescription} [CommitId: {commitId}]",
-            Copyright = copyright,
-            ProjectUrl = new Uri(projectUrl),
-            Tags = nugetTags,
-            RequireLicenseAcceptance= false,
-            Files = nuSpecContentListWinSdk.ToArray(),
-            Properties = new Dictionary<string, string>
+        var includeDir = binaryDistribWinArm64Dir + Directory("include");
+        if (!DirectoryExists(includeDir))
+        {
+            includeDir = binaryDistribWinX64Dir + Directory("include");
+        }
+        if (!DirectoryExists(includeDir))
+        {
+            includeDir = binaryDistribWinX86Dir + Directory("include");
+        }
+        if (!DirectoryExists(includeDir))
+        {
+            throw new Exception("Can not find include directory.");
+        }
+        CopyDirectory(
+                includeDir,
+                sdkTargetDir + Directory("include")
+        );
+        nuSpecContentListWinSdk.Add(new NuSpecContent
+        {
+                Source = "include/**",
+                Target = "CEF"
+        });
+
+        var libcefLibFileWinX86 = binaryDistribWinX86Dir + Directory("Release") + File("libcef.lib");
+        if (FileExists(libcefLibFileWinX86))
+        {
+            CopyFile(
+                    libcefLibFileWinX86,
+                    sdkTargetDir + Directory(toolset) + Directory("win32") + File("libcef.lib")
+            );
+            nuSpecContentListWinSdk.Add(new NuSpecContent
             {
-                    {"Configuration", configuration}
-            },
-            BasePath = sdkTargetDir,
-            OutputDirectory = nugetDir
-    });
+                    Source = $"{toolset}/win32/libcef.lib",
+                    Target = "CEF\\win32\\release"
+            });
+            nuSpecContentListWinSdk.Add(new NuSpecContent
+            {
+                    Source = $"{toolset}/win32/libcef_dll_wrapper/Release/libcef_dll_wrapper.lib",
+                    Target = $"CEF\\win32\\release\\{toolset}"
+            });
+        }
+        var libcefLibFileWinX64 = binaryDistribWinX64Dir + Directory("Release") + File("libcef.lib");
+        if (FileExists(libcefLibFileWinX64))
+        {
+            CopyFile(
+                    libcefLibFileWinX64,
+                    sdkTargetDir + Directory(toolset) + Directory("x64") + File("libcef.lib")
+            );
+            nuSpecContentListWinSdk.Add(new NuSpecContent
+            {
+                    Source = $"{toolset}/x64/libcef.lib",
+                    Target = "CEF\\x64\\release"
+            });
+            nuSpecContentListWinSdk.Add(new NuSpecContent
+            {
+                    Source = $"{toolset}/x64/libcef_dll_wrapper/Release/libcef_dll_wrapper.lib",
+                    Target = $"CEF\\x64\\release\\{toolset}"
+            });
+        }
+        var libcefLibFileWinArm64 = binaryDistribWinArm64Dir + Directory("Release") + File("libcef.lib");
+        if (FileExists(libcefLibFileWinArm64))
+        {
+            CopyFile(
+                    libcefLibFileWinArm64,
+                    sdkTargetDir + Directory(toolset) + Directory("arm64") + File("libcef.lib")
+            );
+            nuSpecContentListWinSdk.Add(new NuSpecContent
+            {
+                    Source = $"{toolset}/arm64/libcef.lib",
+                    Target = "CEF\\arm64\\release"
+            });
+            nuSpecContentListWinSdk.Add(new NuSpecContent
+            {
+                    Source = $"{toolset}/arm64/libcef_dll_wrapper/Release/libcef_dll_wrapper.lib",
+                    Target = $"CEF\\arm64\\release\\{toolset}"
+            });
+        }
+
+        NuGetPack(new NuGetPackSettings
+        {
+                Id = $"{product}.sdk.{toolset}",
+                Version = buildVersion,
+                Authors = nugetAuthors,
+                Description = $"{productDescription} [CommitId: {commitId}]",
+                Copyright = copyright,
+                ProjectUrl = new Uri(projectUrl),
+                Tags = nugetTags,
+                RequireLicenseAcceptance= false,
+                Files = nuSpecContentListWinSdk.ToArray(),
+                Properties = new Dictionary<string, string>
+                {
+                        {"Configuration", configuration}
+                },
+                BasePath = sdkTargetDir,
+                OutputDirectory = nugetDir
+        });
+    }
 });
 
 
