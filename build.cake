@@ -14,6 +14,7 @@ var cefWithAutomateGitRoot = EnvironmentVariable("CEF_WITH_AUTOMATE_GIT_ROOT") ?
 var cefWithChromeDepotToolsCommitId = EnvironmentVariable("CEF_WITH_CHROME_DEPOT_TOOLS_COMMIT_ID") ?? "NOTSET";
 var cefWithChromeDepotToolsRoot = EnvironmentVariable("CEF_WITH_CHROME_DEPOT_TOOLS_ROOT") ?? "NOTSET";
 var cefWithChromeDepotToolsWithUpdate = EnvironmentVariable("CEF_WITH_CHROME_DEPOT_TOOLS_WITH_UPDATE") ?? "ON";
+var cefWithChromiumBranchName = EnvironmentVariable("CEF_WITH_CHROMIUM_BRANCH_NAME") ?? "5060";
 var cefWithCleanBuild = EnvironmentVariable("CEF_WITH_CLEAN_BUILD") ?? "ON";
 var cefWithMsvsRoot = EnvironmentVariable("CEF_WITH_MSVS_ROOT") ?? "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community";
 var cefWithMsvsVcRedistCrtName = EnvironmentVariable("CEF_WITH_MSVS_VC_REDIST_CRT_NAME") ?? "Microsoft.VC142.CRT";
@@ -48,7 +49,6 @@ var productDescription = "HTC Vita External Library for WebView (CEF)";
 var companyName = "HTC";
 var version = "";
 var distribVersion = "";
-var chromiumBranchName = "5060";
 var semanticVersion = "";
 var buildVersion = "";
 var nugetAuthors = new [] {"HTC"};
@@ -236,9 +236,9 @@ string GetAutomateGitCommitId()
     {
         return cefWithAutomateGitCommitId;
     }
-    if (cefAutomateGitCommitIdMap.ContainsKey(chromiumBranchName))
+    if (cefAutomateGitCommitIdMap.ContainsKey(cefWithChromiumBranchName))
     {
-        return cefAutomateGitCommitIdMap[chromiumBranchName];
+        return cefAutomateGitCommitIdMap[cefWithChromiumBranchName];
     }
     return "master";
 }
@@ -557,7 +557,7 @@ Task("Fetch-Source")
                             .Append("/c")
                             .Append("python3.bat")
                             .Append(MakeAbsolute(cefAutomateGitFile).ToString())
-                            .Append($"--branch={chromiumBranchName}")
+                            .Append($"--branch={cefWithChromiumBranchName}")
                             .Append($"--depot-tools-dir=\"{MakeAbsolute(chromeDepotToolsDir).ToString()}\"")
                             .Append($"--download-dir=\"{MakeAbsolute(cefSoureDir).ToString()}\"")
                             .Append(isCleanBuild ? "--force-clean" : "")
@@ -588,7 +588,7 @@ Task("Build-Binary-win-x86")
                             .Append("python3.bat")
                             .Append(MakeAbsolute(cefAutomateGitFile).ToString())
                             .Append("--build-log-file")
-                            .Append($"--branch={chromiumBranchName}")
+                            .Append($"--branch={cefWithChromiumBranchName}")
                             .Append($"--depot-tools-dir=\"{MakeAbsolute(chromeDepotToolsDir).ToString()}\"")
                             .Append($"--download-dir=\"{MakeAbsolute(cefSoureDir).ToString()}\"")
                             .Append("--force-build")
@@ -635,7 +635,7 @@ Task("Build-Binary-win-x64")
                             .Append("python3.bat")
                             .Append(MakeAbsolute(cefAutomateGitFile).ToString())
                             .Append("--build-log-file")
-                            .Append($"--branch={chromiumBranchName}")
+                            .Append($"--branch={cefWithChromiumBranchName}")
                             .Append($"--depot-tools-dir=\"{MakeAbsolute(chromeDepotToolsDir).ToString()}\"")
                             .Append($"--download-dir=\"{MakeAbsolute(cefSoureDir).ToString()}\"")
                             .Append("--force-build")
@@ -685,7 +685,7 @@ Task("Build-Binary-win-arm64")
                             .Append("--arm64-build")
                             .Append("--build-log-file")
                             .Append("--build-target=cefsimple")
-                            .Append($"--branch={chromiumBranchName}")
+                            .Append($"--branch={cefWithChromiumBranchName}")
                             .Append($"--depot-tools-dir=\"{MakeAbsolute(chromeDepotToolsDir).ToString()}\"")
                             .Append($"--download-dir=\"{MakeAbsolute(cefSoureDir).ToString()}\"")
                             .Append("--force-build")
