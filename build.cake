@@ -44,7 +44,7 @@ var cefWithWinX86Binary = EnvironmentVariable("CEF_WITH_WIN_X86_BINARY") ?? "ON"
 var commitId = "SNAPSHOT";
 
 // Define product name and version
-var product = "htc.vita.external.cef";
+var product = "htc_vita_external_cef";
 var productDescription = "HTC Vita External Library for WebView (CEF)";
 var companyName = "HTC";
 var version = "";
