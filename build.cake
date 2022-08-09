@@ -109,6 +109,7 @@ var cefLocaleFileNames = new []
         "zh-CN.pak", "zh-TW.pak"
 };
 cefSdkCmakeOptions.Add("-DUSE_SANDBOX=OFF");
+cefSdkCmakeOptions.Add("-DCEF_DEBUG_INFO_FLAG=/Z7");
 cefSdkCmakeOptions.Add("-DCEF_RUNTIME_LIBRARY_FLAG=/MD");
 var chromeDepotToolsUrl = "https://storage.googleapis.com/chrome-infra/depot_tools.zip";
 var cefSdkMsbuildSettingsDebug = new MSBuildSettings()
