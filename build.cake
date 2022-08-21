@@ -273,7 +273,7 @@ List<NuSpecContent> GetNuSpecContentList(ConvertableDirectoryPath basePath, stri
         fileToPack = basePath + fileToPack;
         if (!FileExists(fileToPack))
         {
-            Warning("Binary {0} does not exist. Skipped.", fileToPack);
+            Warning($"Binary {fileToPack} does not exist. Skipped.");
         }
         else
         {
@@ -430,7 +430,7 @@ void GZipFile(FilePath source, DirectoryPath destination)
 {
     byte[] contents = System.IO.File.ReadAllBytes(source.FullPath);
     FilePath output = destination.CombineWithFilePath($"{source.GetFilename()}.gz");
-    Information("Compressing {0} to {1}", source, output);
+    Information($"Compressing {source} to {output}");
 
     using (var gzipStream = new System.IO.Compression.GZipStream(
             System.IO.File.Create(output.FullPath),
@@ -457,16 +457,16 @@ Task("Display-Config")
     .IsDependentOn("Fetch-Git-Commit-ID")
     .Does(() =>
 {
-    Information("Build target: {0}", target);
-    Information("Build configuration: {0}", configuration);
-    Information("Build commitId: {0}", commitId);
+    Information($"Build target:        {target}");
+    Information($"Build configuration: {configuration}");
+    Information($"Build commitId:      {commitId}");
 
     if("vs2022".Equals(cefWithSdkCmakeMsbuildVersion))
     {
         cefSdkMsbuildSettingsDebug.ToolVersion = MSBuildToolVersion.VS2022;
         cefSdkMsbuildSettingsRelease.ToolVersion = MSBuildToolVersion.VS2022;
     }
-    Information("Build using MSBuild version: {0}", cefSdkMsbuildSettingsRelease.ToolVersion);
+    Information($"MSBuild version:     {cefSdkMsbuildSettingsRelease.ToolVersion}");
 });
 
 Task("Clean-Workspace")
