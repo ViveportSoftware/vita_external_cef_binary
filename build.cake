@@ -14,7 +14,7 @@ var cefWithAutomateGitRoot = EnvironmentVariable("CEF_WITH_AUTOMATE_GIT_ROOT") ?
 var cefWithChromeDepotToolsCommitId = EnvironmentVariable("CEF_WITH_CHROME_DEPOT_TOOLS_COMMIT_ID") ?? "NOTSET";
 var cefWithChromeDepotToolsRoot = EnvironmentVariable("CEF_WITH_CHROME_DEPOT_TOOLS_ROOT") ?? "NOTSET";
 var cefWithChromeDepotToolsWithUpdate = EnvironmentVariable("CEF_WITH_CHROME_DEPOT_TOOLS_WITH_UPDATE") ?? "ON";
-var cefWithChromiumBranchName = EnvironmentVariable("CEF_WITH_CHROMIUM_BRANCH_NAME") ?? "5112";
+var cefWithChromiumBranchName = EnvironmentVariable("CEF_WITH_CHROMIUM_BRANCH_NAME") ?? "5195";
 var cefWithCleanBuild = EnvironmentVariable("CEF_WITH_CLEAN_BUILD") ?? "ON";
 var cefWithMsvsRoot = EnvironmentVariable("CEF_WITH_MSVS_ROOT") ?? "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community";
 var cefWithMsvsVcRedistCrtName = EnvironmentVariable("CEF_WITH_MSVS_VC_REDIST_CRT_NAME") ?? "Microsoft.VC142.CRT";
@@ -81,7 +81,8 @@ var cefAutomateGitCommitIdMap = new Dictionary<string, string>
         { "4951", "0a10fd4506c6753b38a00182c60de65c9ea30a22" },
         { "5005", "0a10fd4506c6753b38a00182c60de65c9ea30a22" },
         { "5060", "0a10fd4506c6753b38a00182c60de65c9ea30a22" },
-        { "5112", "0a10fd4506c6753b38a00182c60de65c9ea30a22" }
+        { "5112", "0a10fd4506c6753b38a00182c60de65c9ea30a22" },
+        { "5195", "0a10fd4506c6753b38a00182c60de65c9ea30a22" }
 };
 var cefSdkCmakeOptions = new List<string>();
 var cefLocaleFileNames = new []
