@@ -338,6 +338,10 @@ IDictionary<string, string> GetWindowsEnvironmentVariables(string platform)
         ninjaDefines.Add("symbol_level=1");
         ninjaDefines.Add("v8_symbol_level=0");
     }
+    if ("arm64".Equals(platform))
+    {
+        ninjaDefines.Add("chrome_pgo_phase=0");
+    }
 
     var env = EnvironmentVariables();
     env["CEF_ARCHIVE_FORMAT"] = "tar.bz2";
@@ -575,7 +579,8 @@ Task("Fetch-Source")
                             .Append(isCleanBuild ? "--force-clean" : "")
                             .Append("--no-build")
                             .Append("--no-depot-tools-update")
-                            .Append("--no-distrib"),
+                            .Append("--no-distrib")
+                            .Append("--with-pgo-profiles"),
                     EnvironmentVariables = GetWindowsEnvironmentVariables(null),
                     WorkingDirectory = chromeDepotToolsDir
             }
@@ -607,7 +612,8 @@ Task("Build-Binary-win-x86")
                             .Append("--force-distrib")
                             .Append("--no-depot-tools-update")
                             .Append("--no-update")
-                            .Append("--verbose-build"),
+                            .Append("--verbose-build")
+                            .Append("--with-pgo-profiles"),
                     EnvironmentVariables = GetWindowsEnvironmentVariables("x86"),
                     WorkingDirectory = chromeDepotToolsDir
             }
@@ -654,7 +660,8 @@ Task("Build-Binary-win-x64")
                             .Append("--no-depot-tools-update")
                             .Append("--no-update")
                             .Append("--verbose-build")
-                            .Append("--x64-build"),
+                            .Append("--x64-build")
+                            .Append("--with-pgo-profiles"),
                     EnvironmentVariables = GetWindowsEnvironmentVariables("x64"),
                     WorkingDirectory = chromeDepotToolsDir
             }
@@ -702,7 +709,8 @@ Task("Build-Binary-win-arm64")
                             .Append("--force-distrib")
                             .Append("--no-depot-tools-update")
                             .Append("--no-update")
-                            .Append("--verbose-build"),
+                            .Append("--verbose-build")
+                            .Append("--with-pgo-profiles"),
                     EnvironmentVariables = GetWindowsEnvironmentVariables("arm64"),
                     WorkingDirectory = chromeDepotToolsDir
             }
