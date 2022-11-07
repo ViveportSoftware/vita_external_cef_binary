@@ -21,6 +21,7 @@ var cefWithMsvsVcRedistCrtName = EnvironmentVariable("CEF_WITH_MSVS_VC_REDIST_CR
 var cefWithMsvsVcRedistVersion = EnvironmentVariable("CEF_WITH_MSVS_VC_REDIST_VERSION") ?? "14.29.30133";
 var cefWithMsvsVcToolsVersion = EnvironmentVariable("CEF_WITH_MSVS_VC_TOOLS_VERSION") ?? "14.29.30133";
 var cefWithMsvsVersion = EnvironmentVariable("CEF_WITH_MSVS_VERSION") ?? "2019";
+var cefWithPgoProfiles = EnvironmentVariable("CEF_WITH_PGO_PROFILES") ?? "OFF";
 var cefWithProprietaryCodecs = EnvironmentVariable("CEF_WITH_PROPRIETARY_CODECS") ?? "OFF";
 var cefWithSdkCmakeMsbuildVersion = EnvironmentVariable("CEF_WITH_SDK_CMAKE_MSBUILD_VERSION") ?? "default";
 var cefWithSdkCmakeToolsetV120 = EnvironmentVariable("CEF_WITH_SDK_CMAKE_TOOLSET_V120") ?? "OFF";
@@ -56,6 +57,7 @@ var nugetTags = new [] {"htc", "vita", "cef"};
 var projectUrl = "https://github.com/ViveportSoftware/vita_external_cef_binary/";
 var isCleanBuild = "ON".Equals(cefWithCleanBuild);
 var isReleaseBuild = "Release".Equals(configuration);
+var isWithPgoProfiles = "ON".Equals(cefWithPgoProfiles);
 var cefAutomateGitCommitIdMap = new Dictionary<string, string>
 {
         { "3945", "3afa29d499b0ce4dcb847459a79143dee347fa86" },
@@ -580,7 +582,7 @@ Task("Fetch-Source")
                             .Append("--no-build")
                             .Append("--no-depot-tools-update")
                             .Append("--no-distrib")
-                            .Append("--with-pgo-profiles"),
+                            .Append(isWithPgoProfiles ? "--with-pgo-profiles" : ""),
                     EnvironmentVariables = GetWindowsEnvironmentVariables(null),
                     WorkingDirectory = chromeDepotToolsDir
             }
@@ -613,7 +615,7 @@ Task("Build-Binary-win-x86")
                             .Append("--no-depot-tools-update")
                             .Append("--no-update")
                             .Append("--verbose-build")
-                            .Append("--with-pgo-profiles"),
+                            .Append(isWithPgoProfiles ? "--with-pgo-profiles" : ""),
                     EnvironmentVariables = GetWindowsEnvironmentVariables("x86"),
                     WorkingDirectory = chromeDepotToolsDir
             }
@@ -661,7 +663,7 @@ Task("Build-Binary-win-x64")
                             .Append("--no-update")
                             .Append("--verbose-build")
                             .Append("--x64-build")
-                            .Append("--with-pgo-profiles"),
+                            .Append(isWithPgoProfiles ? "--with-pgo-profiles" : ""),
                     EnvironmentVariables = GetWindowsEnvironmentVariables("x64"),
                     WorkingDirectory = chromeDepotToolsDir
             }
@@ -710,7 +712,7 @@ Task("Build-Binary-win-arm64")
                             .Append("--no-depot-tools-update")
                             .Append("--no-update")
                             .Append("--verbose-build")
-                            .Append("--with-pgo-profiles"),
+                            .Append(isWithPgoProfiles ? "--with-pgo-profiles" : ""),
                     EnvironmentVariables = GetWindowsEnvironmentVariables("arm64"),
                     WorkingDirectory = chromeDepotToolsDir
             }
