@@ -397,6 +397,7 @@ IDictionary<string, string> GetWindowsEnvironmentVariables(string platform)
     env["CEF_VCVARS"] = "none";
     env["DEPOT_TOOLS_WIN_TOOLCHAIN"] = "0";
     env["GYP_MSVS_OVERRIDE_PATH"] = cefWithMsvsRoot;
+    env["SDK_VERSION"] = cefWithWinSdkVersion;
 
     var oldInclude = "";
     if (env.ContainsKey("INCLUDE"))
